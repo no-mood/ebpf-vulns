@@ -1,0 +1,36 @@
+ebpf_program:
+  name: "xdp_drop"
+  type: "XDP"           # Or TC or socket_filter
+  attach_point: "eth0"  # Network interface to attach the program
+  kernel_version: "6.8" # Kernel version for compatibility check
+  verifier_options:
+    relaxed_checking: false  # Strict verifier checking -> found where ?
+    allow_tail_calls: true   #Allow calling of other bpf functions
+    stack_size_limit: 512  # Max stack size in bytes
+  maps:       #Maps for mem
+    - name: "packet_stats" 
+      type: "array"
+      key_size: 4
+      value_size: 8
+      max_entries: 1024
+    - name: "rate_limiter"
+      type: "hash"
+      key_size: 4
+      value_size: 4
+      max_entries: 256
+  features: #Required helper functions
+    - "BPF_FUNC_map_lookup_elem" 
+    - "BPF_FUNC_map_update_elem"
+    - "BPF_FUNC_tail_call"
+  dependencies: #Dependency versions -> will standardize against one
+    clang_version: "14.0"
+    llvm_version: "14.0"
+    libbpf: "1.2.0"
+  loading:
+    pinning: true   # Should the program/maps be pinned to /sys/fs/bpf?
+    auto_attach: true #loader will auto attach the program -> not usable for us
+  testing:
+    runtime_test: true  #Need to find a strategy for tests
+    packet_replay: "test.pcap"  # Use a PCAP file for testing
+    expected_behavior: "drop"   # Expected behavior: drop, pass, redirect, etc.
+
