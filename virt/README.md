@@ -45,8 +45,7 @@ Steps to reproduce :
 `wget https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img`
 `sudo mv noble-server-cloudimg-amd64.img /var/lib/libvirt/images`
 
-`sudo virt-install --name ubuntu-xdp-24.04 --memory 4096 --vcpus 2 --disk=size=20,backing_store="/var/lib/libvirt/images/noble-server-cloudimg-amd64.img"  --os-variant ubuntu24.04 --network network=default,model=virtio --cloud-ini
-t user-data="$(pwd)/user-data",meta-data="$(pwd)/meta-data" `
+`sudo virt-install --name ubuntu-xdp-24.04 --memory 4096 --vcpus 2 --disk=size=20,backing_store="/var/lib/libvirt/images/noble-server-cloudimg-amd64.img"  --os-variant ubuntu24.04 --network network=default,model=virtio --cloud-init user-data="$(pwd)/user-data",meta-data="$(pwd)/meta-data" `
 
 # Connection
 
