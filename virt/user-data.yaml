@@ -1,0 +1,27 @@
+#cloud-config
+users:
+- name: user
+  lock_passwd: false
+  sudo: ALL=(ALL) NOPASSWD:ALL
+  shell: /bin/bash
+  plain_text_passwd:
+  ssh-authorized-keys:
+      - __SSH_PUBLIC_KEY__
+
+package_update: true
+package_upgrade: true
+packages:
+  - build-essential
+  - clang
+  - llvm
+  - iproute2
+  - iputils-ping
+  - git
+  - make
+  - gcc
+  - linux-headers-generic
+  - bpfcc-tools
+  - net-tools
+  - vim
+  - libbpf-dev
+  - tmux
