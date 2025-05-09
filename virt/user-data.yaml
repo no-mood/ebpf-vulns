@@ -4,7 +4,7 @@ users:
   lock_passwd: false
   sudo: ALL=(ALL) NOPASSWD:ALL
   shell: /bin/bash
-  plain_text_passwd:
+  plain_text_passwd: ""
   ssh-authorized-keys:
       - __SSH_PUBLIC_KEY__
 
