@@ -11,17 +11,27 @@ users:
 package_update: true
 package_upgrade: true
 packages:
-  - build-essential
-  - clang
-  - llvm
-  - iproute2
-  - iputils-ping
-  - git
-  - make
-  - gcc
-  - linux-headers-generic
-  - bpfcc-tools
-  - net-tools
-  - vim
-  - libbpf-dev
-  - tmux
+  # Packages required for eBPF
+  - clang               # Compiler for eBPF programs
+  - llvm                # Backend for clang
+  - libelf-dev          # For working with ELF (Executable and Linkable Format)
+  - libpcap-dev         # For analyzing network packets
+  - build-essential     # Compilation tools (includes make, gcc, etc.)
+  - libc6-dev-i386      # Compatibility libraries for some builds
+  - m4                  # Macro processing tool for compilation
+  - linux-tools-generic # Includes tools like 'perf' for profiling
+  - linux-headers-generic # Kernel headers required for eBPF
+  - linux-tools-common  # Common kernel tools
+  - tcpdump             # For analyzing network traffic (debugging and testing)
+  - xdp-tools          # Tools for XDP (eXpress Data Path) programming
+
+  # Other useful packages
+  - iproute2            # Tools for configuring and managing network interfaces
+  - iputils-ping        # For testing network connectivity
+  - git                 # For cloning repositories
+  - make                # Build tool (already included in build-essential)
+  - gcc                 # C compiler (already included in build-essential)
+  - bpfcc-tools         # eBPF-based tools (e.g., tracing utilities)
+  - net-tools           # Legacy network tools (e.g., ifconfig)
+  - vim                 # Text editor
+  - libbpf-dev          # Library for interacting with eBPF programs
