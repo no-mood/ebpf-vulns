@@ -3,7 +3,7 @@
 # Variables
 IMAGE_URL="https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
 IMAGE_NAME="noble-server-cloudimg-amd64.img"
-IMAGE_PATH="./$IMAGE_NAME"
+IMAGE_PATH="/var/lib/libvirt/images/$IMAGE_NAME"
 VM_NAME="ubuntu-xdp-24.04"
 MEMORY="4096"
 VCPUS="2"
@@ -38,15 +38,19 @@ if [ -f "$IMAGE_PATH" ]; then
   read -p "Image '$IMAGE_PATH' already exists. Do you want to redownload it? [y/N]: " CONFIRM
   CONFIRM=${CONFIRM:-n}  # Default to "no" if the user presses Enter
   if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
-    echo "Redownloading image to '$IMAGE_PATH'..."
-    wget -O "$IMAGE_PATH" "$IMAGE_URL"
+    echo "Redownloading image..."
+    wget -O "$IMAGE_NAME" "$IMAGE_URL"
+    echo "Moving image to $IMAGE_PATH..."
+    sudo mv "$IMAGE_NAME" "$IMAGE_PATH"
   else
     echo "Using existing image at '$IMAGE_PATH'."
   fi
 else
   # Download the image if it doesn't exist
-  echo "Downloading image to '$IMAGE_PATH'..."
-  wget -O "$IMAGE_PATH" "$IMAGE_URL"
+  echo "Downloading image..."
+  wget -O "$IMAGE_NAME" "$IMAGE_URL"
+  echo "Moving image to $IMAGE_PATH..."
+  sudo mv "$IMAGE_NAME" "$IMAGE_PATH"
 fi
 
 # Run virt-install
@@ -55,7 +59,7 @@ sudo virt-install \
   --name "$VM_NAME" \
   --memory "$MEMORY" \
   --vcpus "$VCPUS" \
-  --disk path="$IMAGE_PATH",size="$DISK_SIZE" \
+  --disk size="$DISK_SIZE",backing_store="$IMAGE_PATH" \
   --os-variant "$OS_VARIANT" \
   --network network="$NETWORK",model=virtio \
   --cloud-init user-data="$USER_DATA",meta-data="$META_DATA"
