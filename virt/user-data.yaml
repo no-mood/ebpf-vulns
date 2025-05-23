@@ -35,3 +35,4 @@ packages:
   - net-tools           # Legacy network tools (e.g., ifconfig)
   - vim                 # Text editor
   - libbpf-dev          # Library for interacting with eBPF programs
+  - linux-bpf-dev       # Vmlinux for arch and kernel version specifed 

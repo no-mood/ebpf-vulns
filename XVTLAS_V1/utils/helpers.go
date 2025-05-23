@@ -21,8 +21,14 @@ func ConfirmPrompt(msg string) bool {
 }
 
 func CompileEBPF(path string, cfg interface{}, row *report.CSVRow) string {
+
+	//Run Makefile general, after generating the single makefiles for the codes 
+	//TODO needed ??
+	out, err_genMake := GenMakes(path string)
+
+
 	oFile := path[:len(path)-2] + ".o"
-	cmd := exec.Command("clang", "-O2", "-target", "bpf", "-c", path, "-o", oFile)
+	cmd := exec.Command("make clean & make")
 	output, err := cmd.CombinedOutput()
 	row.Compiled = err == nil
 	row.LoadOutput += string(output)
@@ -39,6 +45,10 @@ func RunVerifier(oFile, cFile, prettyPath string, row *report.CSVRow) {
 
 func LoadEBPF(oFile string, cfg *config.EBPFConfig, row *report.CSVRow) {
 	// TODO add loads when I figure out how to compile out of three
+	//1) take as input the compile_object
+	//2) use target from config_to try attach if configured ()
+	//3) 
+
 	row.Loaded = true
 }
 
