@@ -1,4 +1,4 @@
-module xvtlas.com/m
+module xvtlas
 
 go 1.24.2
 

@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"xvtlas/report"
+	"xvtlas/config"
+	"path/filepath"
 )
 
 func FileExists(path string) bool {
@@ -19,20 +21,22 @@ func ConfirmPrompt(msg string) bool {
 	response, _ := reader.ReadString('\n')
 	return response == "y\n"
 }
-
-func CompileEBPF(path string, cfg interface{}, row *report.CSVRow) string {
-
-	//Run Makefile general, after generating the single makefiles for the codes 
-	//TODO needed ??
-	out, err_genMake := GenMakes(path string)
-
-
-	oFile := path[:len(path)-2] + ".o"
-	cmd := exec.Command("make clean & make")
+//Still need checks for some edge cases
+func RunMakeAll(rootPath string) (string, error) {
+	cmd := exec.Command("make", "-C", rootPath)
 	output, err := cmd.CombinedOutput()
-	row.Compiled = err == nil
-	row.LoadOutput += string(output)
-	return oFile
+	return string(output), err
+}
+
+//the .o file should be found in each folder
+func FindObjectFile(folderPath string) string { 
+	files, _ := os.ReadDir(folderPath)
+	for _, file := range files {
+		if filepath.Ext(file.Name()) == ".o" {
+			return filepath.Join(folderPath, file.Name())
+		}
+	}
+	return ""
 }
 
 func RunVerifier(oFile, cFile, prettyPath string, row *report.CSVRow) {
@@ -44,10 +48,9 @@ func RunVerifier(oFile, cFile, prettyPath string, row *report.CSVRow) {
 }
 
 func LoadEBPF(oFile string, cfg *config.EBPFConfig, row *report.CSVRow) {
-	// TODO add loads when I figure out how to compile out of three
 	//1) take as input the compile_object
 	//2) use target from config_to try attach if configured ()
-	//3) 
+	//3) NO need for this now
 
 	row.Loaded = true
 }

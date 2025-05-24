@@ -9,11 +9,19 @@ import (
 	"xvtlas/report"
 	"xvtlas/utils"
 )
-
 func RunPipeline(rootPath, prettyPath, kernelVersion, exportPath string, interactive bool) {
 	var rows []report.CSVRow
 
-	err := filepath.Walk(rootPath, func(path string, info os.FileInfo, err error) error {
+	// Global compilation
+	compilationLog, err := utils.RunMakeAll(rootPath)
+	if err != nil {
+		logger.LogError("Makefile", compilationLog)
+		if interactive && !utils.ConfirmPrompt("Compilation failed. Continue?") {
+			os.Exit(0)
+		}
+	}
+
+	err = filepath.Walk(rootPath, func(path string, info os.FileInfo, err error) error {
 		if !info.IsDir() {
 			return nil
 		}
@@ -38,12 +46,16 @@ func RunPipeline(rootPath, prettyPath, kernelVersion, exportPath string, interac
 			Filename:        ebpfFile,
 			LoadParameters:  fmt.Sprintf("%v", cfg.EBPFProgram),
 			KernelVersion:   kernelVersion,
+			Compiled:        true, // assume success if object exists ??
 		}
 
-		oFile := utils.CompileEBPF(ebpfFile, cfg, &row)
-		if oFile != "" {
+		oFile := utils.FindObjectFile(path)
+		if oFile == "" {
+			row.Compiled = false
+			row.LoadOutput += "No .o file found after make.\n"
+		} else {
 			utils.RunVerifier(oFile, ebpfFile, prettyPath, &row)
-			utils.LoadEBPF(oFile, cfg, &row)
+			//utils.LoadEBPF(oFile, cfg, &row)
 		}
 
 		logger.SaveLog(ebpfFile, row.LoadOutput)
@@ -57,4 +69,3 @@ func RunPipeline(rootPath, prettyPath, kernelVersion, exportPath string, interac
 
 	report.ExportCSV(rows, exportPath)
 }
-
