@@ -100,6 +100,15 @@ static __always_inline int process_packet(struct xdp_md *ctx, __u64 off)
     if ((void *)(iph + 1) > data_end || iph->ihl != 5)
         return XDP_DROP;
 
+    /* --- inizio test ptrcomp --- */
+    void *p1 = data;
+    int *int_ptr = (int *)&off;
+
+    if ((void *)int_ptr > p1) {
+        return XDP_DROP;
+    }
+    /* --- fine test ptrcomp --- */
+
     protocol = iph->protocol;
     payload_len = bpf_ntohs(iph->tot_len);
     off += sizeof(struct iphdr);
