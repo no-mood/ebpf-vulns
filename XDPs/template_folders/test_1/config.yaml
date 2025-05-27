@@ -1,0 +1,15 @@
+ebpf_program:
+  name: "xdp_example-1"
+  type: "XDP"
+  attach_point: "eth-0"
+
+  loading:
+    pinning: false
+    auto_attach: false
+
+  verifier_options: {}
+  maps: []
+  features: []
+  dependencies: {}
+  testing: {}
+
