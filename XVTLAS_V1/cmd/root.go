@@ -22,6 +22,7 @@ var rootCmd = &cobra.Command{
 	Short: "XVTlas - XDP Verifier Launch Automation Suite ",
 	Run: func(cmd *cobra.Command, args []string) {
 		logger.Init(verbose, exportPath)
+		CastStatus(rootPath, prettyPath, kernelVersion, exportPath, interactive)
 		ebpf.RunPipeline(rootPath, prettyPath, kernelVersion, exportPath, interactive)
 	},
 }
@@ -40,3 +41,10 @@ func Execute() {
 	}
 }
 
+func CastStatus( rootPath string, prettyPath string, kernelVersion string, exportPath string, interactive bool) {
+	fmt.Println("Root path : ", rootPath)
+	fmt.Println("Pretty : ", prettyPath)
+	fmt.Println("Kernel : ", kernelVersion)
+	fmt.Println("Export : ", exportPath)
+	fmt.Println("Interactive : ", interactive)
+}

@@ -39,10 +39,21 @@ func FindObjectFile(folderPath string) string {
 	return ""
 }
 
-func RunVerifier(oFile, cFile, prettyPath string, row *report.CSVRow) {
-	cmdStr := fmt.Sprintf("bpftool prog load %s /sys/fs/bpf/%s 2>&1 | python3 %s -c %s", oFile, filepath.Base(oFile), prettyPath, cFile)
+func RunVerifier(oFile, cFile, prettyPath string, row *report.CSVRow, cfg *config.EBPFConfig) {
+	progName := cfg.EBPFProgram.Name
+	fmt.Println(progName)
+	if progName == "" {
+		progName = filepath.Base(oFile)
+	}
+
+	pinPath := progName
+
+	cmdStr := fmt.Sprintf("sudo bpftool prog load %s /sys/fs/bpf/%s 2>&1 | python3 %s -c %s", oFile, pinPath, prettyPath, cFile)
+	fmt.Println("Comnmand : ",cmdStr)
 	cmd := exec.Command("bash", "-c", cmdStr)
 	output, err := cmd.CombinedOutput()
+	//fmt.Println("Verifier output: ",output)
+	//fmt.Println("Verifier errors: ", err)
 	row.Verified = err == nil
 	row.LoadOutput += string(output)
 }

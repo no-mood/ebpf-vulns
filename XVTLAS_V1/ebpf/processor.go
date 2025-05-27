@@ -14,6 +14,7 @@ func RunPipeline(rootPath, prettyPath, kernelVersion, exportPath string, interac
 
 	// Global compilation
 	compilationLog, err := utils.RunMakeAll(rootPath)
+	fmt.Println("Stuff is compiled :", compilationLog)
 	if err != nil {
 		logger.LogError("Makefile", compilationLog)
 		if interactive && !utils.ConfirmPrompt("Compilation failed. Continue?") {
@@ -54,7 +55,7 @@ func RunPipeline(rootPath, prettyPath, kernelVersion, exportPath string, interac
 			row.Compiled = false
 			row.LoadOutput += "No .o file found after make.\n"
 		} else {
-			utils.RunVerifier(oFile, ebpfFile, prettyPath, &row)
+			utils.RunVerifier(oFile, ebpfFile, prettyPath, &row, cfg)
 			//utils.LoadEBPF(oFile, cfg, &row)
 		}
 
