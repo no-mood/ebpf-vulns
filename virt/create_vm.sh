@@ -13,16 +13,19 @@ NETWORK="default"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 USER_DATA="$SCRIPT_DIR/user-data.yaml"
 META_DATA="$SCRIPT_DIR/meta-data.yaml"
-SSH_KEY_FILE="$SCRIPT_DIR/ssh-key.pub"
 
 # Check if the SSH key file exists
-if [ ! -f "$SSH_KEY_FILE" ]; then
-  echo "Error: SSH key file '$SSH_KEY_FILE' not found."
+if [ ! -z "$1" ]; then
+  echo "Usage: $0 <path_to_ssh_key_file"
   exit 1
 fi
 
-# Read the SSH key
-SSH_KEY=$(cat "$SSH_KEY_FILE")
+SSH_KEY="$1"
+
+if [ ! -f "$SSH_KEY" ]; then 
+  echo "File not found: $SSH_KEY"
+  exit 2
+fi
 
 # Replace the placeholder in user-data.yaml directly
 sed -i "s|__SSH_PUBLIC_KEY__|$SSH_KEY|" "$USER_DATA"

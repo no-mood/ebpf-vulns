@@ -25,5 +25,4 @@ go.work.sum
 *.img
 
 # Files containing the ssh pub key file
-virt/ssh-key.pub
 virt/user-data.yaml
