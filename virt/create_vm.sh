@@ -15,17 +15,19 @@ USER_DATA="$SCRIPT_DIR/user-data.yaml"
 META_DATA="$SCRIPT_DIR/meta-data.yaml"
 
 # Check if the SSH key file exists
-if [ ! -z "$1" ]; then
+if [ -z "$1" ]; then
   echo "Usage: $0 <path_to_ssh_key_file"
   exit 1
 fi
 
-SSH_KEY="$1"
+SSH_KEY_FILE="$1"
 
-if [ ! -f "$SSH_KEY" ]; then 
-  echo "File not found: $SSH_KEY"
+if [ ! -f "$SSH_KEY_FILE" ]; then 
+  echo "File not found: $SSH_KEY_FILE"
   exit 2
 fi
+
+SSH_KEY=$(<"$SSH_KEY_FILE")
 
 # Replace the placeholder in user-data.yaml directly
 sed -i "s|__SSH_PUBLIC_KEY__|$SSH_KEY|" "$USER_DATA"
