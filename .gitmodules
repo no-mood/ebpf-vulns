@@ -1,0 +1,3 @@
+[submodule "katran"]
+	path = katran
+	url = git@github.com:facebookincubator/katran.git
