@@ -1,3 +1,6 @@
 [submodule "katran"]
 	path = katran
 	url = git@github.com:facebookincubator/katran.git
+[submodule "pretty-verifier"]
+	path = pretty-verifier
+	url = git@github.com:netgroup-polito/pretty-verifier.git
