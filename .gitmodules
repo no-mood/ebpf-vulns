@@ -1,3 +1,6 @@
 [submodule "pretty-verifier"]
 	path = pretty-verifier
 	url = git@github.com:netgroup-polito/pretty-verifier.git
+[submodule "linux-kernel"]
+	path = linux-kernel
+	url = git://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git
