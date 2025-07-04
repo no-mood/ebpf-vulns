@@ -8,7 +8,7 @@ cd "$(dirname "$0")/../../bpf-examples"
 for patch in ../rules/*/*.patch; do
     if [ -f "$patch" ]; then
         echo "Applying patch: $patch"
-        patch -p1 < "$patch"
+        git apply "$patch"
     fi
 done
 
