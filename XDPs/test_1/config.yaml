@@ -4,7 +4,7 @@ ebpf_program:
   attach_point: "eth-0"
 
   loading:
-    pinning: false
+    pinning: true
     auto_attach: false
 
   verifier_options: {}
