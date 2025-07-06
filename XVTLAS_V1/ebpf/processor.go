@@ -78,7 +78,13 @@ func RunPipelinePatch(patchRoot, baseFile, prettyPath, kernelVersion, exportPath
 	var rows []report.CSVRow
 
 	submoduleRoot := filepath.Dir(baseFile)
-	absSubmoduleRoot, err := filepath.Abs(submoduleRoot)
+	absSubmoduleRoot,err1 := filepath.Abs(submoduleRoot)
+	if err1 != nil {
+		logger.LogError(absSubmoduleRoot, fmt.Sprintf("Failed to get absolute path: %s", err1.Error()))
+		return
+	}
+
+
 	fmt.Println("Running pipeline")
 
 	err := filepath.Walk(patchRoot, func(path string, info os.FileInfo, err error) error {
