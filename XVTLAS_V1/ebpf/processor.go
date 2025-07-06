@@ -77,6 +77,8 @@ func RunPipeline(rootPath, prettyPath, kernelVersion, exportPath string, interac
 func RunPipelinePatch(patchRoot, baseFile, prettyPath, kernelVersion, exportPath string, interactive, removePatched bool) {
 	var rows []report.CSVRow
 
+	submoduleRoot := filepath.Dir(baseFile)
+
 	err := filepath.Walk(patchRoot, func(path string, info os.FileInfo, err error) error {
 		if !info.IsDir() {
 			return nil
@@ -88,27 +90,24 @@ func RunPipelinePatch(patchRoot, baseFile, prettyPath, kernelVersion, exportPath
 			return nil
 		}
 
-		// Reset base file before applying patch
-		resetCmd := exec.Command("git", "checkout", "--", baseFile)
-		resetCmd.Dir = filepath.Dir(baseFile)
+		// Ensure submodule base file is reset to clean state
+		resetCmd := exec.Command("git", "-C", submoduleRoot, "reset", "--hard")
 		if out, err := resetCmd.CombinedOutput(); err != nil {
-			logger.LogError(baseFile, fmt.Sprintf("Failed to reset base file: %s\nOutput: %s", err.Error(), out))
+			logger.LogError(baseFile, fmt.Sprintf("Failed to reset repo state: %s\nOutput: %s", err.Error(), out))
 			return nil
 		}
 
-		// Apply patch.diff using git apply
-		cmd := exec.Command("git", "apply", patchFile)
-		cmd.Dir = filepath.Dir(baseFile)
-		output, err := cmd.CombinedOutput()
-		if err != nil {
-			logger.LogError(patchFile, fmt.Sprintf("Failed to apply patch: %s\nOutput: %s", err.Error(), output))
+		// Apply patch using git apply from the submodule root
+		applyCmd := exec.Command("git", "-C", submoduleRoot, "apply", patchFile)
+		if out, err := applyCmd.CombinedOutput(); err != nil {
+			logger.LogError(patchFile, fmt.Sprintf("Failed to apply patch: %s\nOutput: %s", err.Error(), out))
 			if interactive && !utils.ConfirmPrompt("Continue after failed patch?") {
 				os.Exit(1)
 			}
 			return nil
 		}
 
-		// Copy the patched file into the target directory
+		// Copy patched source to test folder as main.c
 		patchedDest := filepath.Join(path, "main.c")
 		srcFile, err := os.Open(baseFile)
 		if err != nil {
@@ -124,18 +123,17 @@ func RunPipelinePatch(patchRoot, baseFile, prettyPath, kernelVersion, exportPath
 		}
 		defer dstFile.Close()
 
-		_, err = io.Copy(dstFile, srcFile)
-		if err != nil {
+		if _, err = io.Copy(dstFile, srcFile); err != nil {
 			logger.LogError(patchedDest, "Failed to copy patched source")
 			return nil
 		}
 
-		// Compile using make in this folder
+		// Compile with make in target dir
 		compilationLog, err := utils.RunMake(path)
 		if err != nil {
 			logger.LogError("Makefile", compilationLog)
 			if interactive && !utils.ConfirmPrompt("Compilation failed. Continue?") {
-				os.Exit(0)
+				os.Exit(1)
 			}
 		}
 
@@ -164,14 +162,14 @@ func RunPipelinePatch(patchRoot, baseFile, prettyPath, kernelVersion, exportPath
 		logger.SaveLog(patchedDest, row.LoadOutput)
 		rows = append(rows, row)
 
-		// Optionally remove the patched main.c
+		// Optionally remove main.c copy
 		if removePatched {
-			os.Remove(patchedDest)
+			_ = os.Remove(patchedDest)
 		}
 
-		// unpin the program
+		// Unpin loaded program if necessary
 		progName := cfg.EBPFProgram.Name
-		if progName == "" {
+		if progName == "" && oFile != "" {
 			progName = filepath.Base(oFile)
 		}
 		_ = exec.Command("sudo", "rm", "-f", filepath.Join("/sys/fs/bpf", progName)).Run()
