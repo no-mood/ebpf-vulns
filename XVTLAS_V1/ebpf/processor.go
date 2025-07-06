@@ -78,6 +78,7 @@ func RunPipelinePatch(patchRoot, baseFile, prettyPath, kernelVersion, exportPath
 	var rows []report.CSVRow
 
 	submoduleRoot := filepath.Dir(baseFile)
+	fmt.Println("Running pipeline")
 
 	err := filepath.Walk(patchRoot, func(path string, info os.FileInfo, err error) error {
 		if !info.IsDir() {
@@ -97,10 +98,17 @@ func RunPipelinePatch(patchRoot, baseFile, prettyPath, kernelVersion, exportPath
 			return nil
 		}
 
-		// Apply patch using git apply from the submodule root
-		applyCmd := exec.Command("git", "-C", submoduleRoot, "apply", patchFile)
-		if out, err := applyCmd.CombinedOutput(); err != nil {
-			logger.LogError(patchFile, fmt.Sprintf("Failed to apply patch: %s\nOutput: %s", err.Error(), out))
+		// Convert patch file to absolute path to avoid path resolution issues
+		absPatchFile, err := filepath.Abs(patchFile)
+		if err != nil {
+			logger.LogError(patchFile, fmt.Sprintf("Failed to get absolute path: %s", err.Error()))
+			return nil
+		}
+
+		// Apply patch using git apply with absolute path from submodule root
+		applyCmd := exec.Command("git", "-C", submoduleRoot, "apply", absPatchFile)
+		if output, err := applyCmd.CombinedOutput(); err != nil {
+			logger.LogError(patchFile, fmt.Sprintf("Failed to apply patch: %s\nOutput: %s", err.Error(), output))
 			if interactive && !utils.ConfirmPrompt("Continue after failed patch?") {
 				os.Exit(1)
 			}
