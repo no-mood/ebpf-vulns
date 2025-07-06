@@ -45,10 +45,10 @@ This compiles all programs found under `--path`, loads and verifies them using `
 ### Run using patch-based processing
 
 ```bash
-sudo ./xvtlas \
+sudo ./XVTLAS_V1/xvtlas \
   --export "./output/" \
   --kernel "6.8.58" \
-  --patch-path "./linux-kernel/tools/testing/selftests/bpf/progs" \
+  --patch-path "./rules/" \
   --base-file "./linux-kernel/tools/testing/selftests/bpf/xdp_synproxy_kern.c" \
   --pretty "./pretty-verifier/pretty_verifier.py" \
   --verbose \
