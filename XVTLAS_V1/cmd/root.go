@@ -15,6 +15,7 @@ var (
 	exportPath    string
 	prettyPath    string
 	kernelVersion string
+	patchPath     string
 )
 
 var rootCmd = &cobra.Command{
@@ -34,6 +35,23 @@ func Execute() {
 	rootCmd.Flags().StringVarP(&exportPath, "export", "e", "./output", "Export location for logs and CSV")
 	rootCmd.Flags().StringVar(&prettyPath, "pretty", "", "Path to pretty verifier")
 	rootCmd.Flags().StringVar(&kernelVersion, "kernel", "", "Target kernel version for accounting")
+	rootCmd.Flags().StringVar(&patchPath, "patch-path", "", "Path to folders containing patches and configs")
+
+	rootCmd.PreRunE = func(cmd *cobra.Command, args []string) error {
+		if patchPath != "" && rootPath != "." {
+			return fmt.Errorf("--patch-path and --path are mutually exclusive")
+		}
+		return nil
+	}
+
+	rootCmd.Run = func(cmd *cobra.Command, args []string) {
+		logger.Init(verbose, exportPath)
+		if patchPath != "" {
+			ebpf.RunPatchPipeline(patchPath, prettyPath, kernelVersion, exportPath, interactive)
+		} else {
+			ebpf.RunPipeline(rootPath, prettyPath, kernelVersion, exportPath, interactive)
+		}
+	}
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
