@@ -1,0 +1,19 @@
+diff --git a/tools/testing/selftests/bpf/progs/xdp_synproxy_kern.c b/tools/testing/selftests/bpf/progs/xdp_synproxy_kern.c
+index 518329c666e9..0d0d9903aaad 100644
+--- a/tools/testing/selftests/bpf/progs/xdp_synproxy_kern.c
++++ b/tools/testing/selftests/bpf/progs/xdp_synproxy_kern.c
+@@ -560,6 +560,14 @@ static __always_inline void tcpv6_gen_synack(struct header_pointers *hdr,
+ 	__u16 mss;
+ 	__u8 ttl;
+ 
++
++	int x = 0;
++	int y = 4;
++
++	while((x=y)) {
++		x++;
++	}
++
+ 	values_get_tcpipopts(&mss, &wscale, &ttl, true);
+ 
+ 	swap_eth_addr(hdr->eth->h_source, hdr->eth->h_dest);
