@@ -66,3 +66,12 @@ func LoadEBPF(oFile string, cfg *config.EBPFConfig, row *report.CSVRow) {
 	row.Loaded = true
 }
 
+
+
+//Function to run make on the single folder in order to compile only the actively patched file
+func RunMake(rootPath string) (string, error) {
+	cmd := exec.Command("make", "-C", rootPath)
+	output, err := cmd.CombinedOutput()
+	return string(output), err
+}
+ 
