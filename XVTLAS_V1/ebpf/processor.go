@@ -78,6 +78,7 @@ func RunPipelinePatch(patchRoot, baseFile, prettyPath, kernelVersion, exportPath
 	var rows []report.CSVRow
 
 	submoduleRoot := filepath.Dir(baseFile)
+	absSubmoduleRoot, err := filepath.Abs(submoduleRoot)
 	fmt.Println("Running pipeline")
 
 	err := filepath.Walk(patchRoot, func(path string, info os.FileInfo, err error) error {
@@ -92,9 +93,9 @@ func RunPipelinePatch(patchRoot, baseFile, prettyPath, kernelVersion, exportPath
 		}
 
 
-		fmt.Println(submoduleRoot)
+		fmt.Println(absSubmoduleRoot)
 		// Ensure submodule base file is reset to clean state
-		resetCmd := exec.Command("git", "-C", submoduleRoot, "reset", "--hard")
+		resetCmd := exec.Command("git", "-C", absSubmoduleRoot, "reset", "--hard")
 		if out, err := resetCmd.CombinedOutput(); err != nil {
 			logger.LogError(baseFile, fmt.Sprintf("Failed to reset repo state: %s\nOutput: %s", err.Error(), out))
 			return nil
@@ -107,7 +108,7 @@ func RunPipelinePatch(patchRoot, baseFile, prettyPath, kernelVersion, exportPath
 			return nil
 		}
 		
-		absSubmoduleRoot, err := filepath.Abs(submoduleRoot)
+		
 		fmt.Println("pathc file ", absPatchFile)
 		fmt.Println("Root", absSubmoduleRoot)
 		// Apply patch using git apply with absolute path from submodule root
