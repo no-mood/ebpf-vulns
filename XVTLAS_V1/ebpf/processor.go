@@ -91,6 +91,8 @@ func RunPipelinePatch(patchRoot, baseFile, prettyPath, kernelVersion, exportPath
 			return nil
 		}
 
+
+		fmt.Println(submoduleRoot)
 		// Ensure submodule base file is reset to clean state
 		resetCmd := exec.Command("git", "-C", submoduleRoot, "reset", "--hard")
 		if out, err := resetCmd.CombinedOutput(); err != nil {
@@ -104,9 +106,12 @@ func RunPipelinePatch(patchRoot, baseFile, prettyPath, kernelVersion, exportPath
 			logger.LogError(patchFile, fmt.Sprintf("Failed to get absolute path: %s", err.Error()))
 			return nil
 		}
-
+		
+		absSubmoduleRoot, err := filepath.Abs(submoduleRoot)
+		fmt.Println("pathc file ", absPatchFile)
+		fmt.Println("Root", absSubmoduleRoot)
 		// Apply patch using git apply with absolute path from submodule root
-		applyCmd := exec.Command("git", "-C", submoduleRoot, "apply", absPatchFile)
+		applyCmd := exec.Command("git", "-C", absSubmoduleRoot, "apply", absPatchFile)
 		if output, err := applyCmd.CombinedOutput(); err != nil {
 			logger.LogError(patchFile, fmt.Sprintf("Failed to apply patch: %s\nOutput: %s", err.Error(), output))
 			if interactive && !utils.ConfirmPrompt("Continue after failed patch?") {
