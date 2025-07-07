@@ -24,5 +24,8 @@ go.work.sum
 # img file
 *.img
 
+# xvtlas compiled file
+XVTLAS/xvtlas
+
 # Files containing the ssh pub key file
 virt/user-data.yaml
