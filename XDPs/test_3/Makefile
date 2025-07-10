@@ -7,7 +7,7 @@ USER_SRC := xdp_synproxy.c
 SKEL_H := $(BPF_SRC:.c=.skel.h) # e.g., xdp_synproxy_kern.skel.h
 
 # Define the output BPF object file and user-space executable
-BPF_OBJ := $(BPF_SRC:.c=.o)
+BPF_OBJ := $(BPF_SRC:.c=.bpf.o)
 USER_BIN := $(USER_SRC:.c=) # Removes the .c extension to get the executable name (e.g., xdp_synproxy)
 
 # Compiler and tools
@@ -45,7 +45,7 @@ all: $(BPF_OBJ) $(SKEL_H) $(USER_BIN)
 
 # Rule to compile BPF .c files into .o (BPF object files)
 # This rule applies to any .c file that needs to be compiled for the BPF target.
-%.o: %.c
+%.bpf.o: %.c
 	$(CLANG) $(BPF_CFLAGS) -c $< -o $@
 
 # Rule to generate the BPF skeleton header from the BPF object file

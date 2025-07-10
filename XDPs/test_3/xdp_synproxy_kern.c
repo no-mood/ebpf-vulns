@@ -515,19 +515,6 @@ static __always_inline void tcp_gen_synack(struct tcphdr *tcp_header,
 {
 	void *tcp_options;
 
-	int x = 0;
-	int y = 4;
-jump2:
-	while((x=y)){
-		x++;
-		goto jump;
-	}
-jump:	
-	while((x=y)) {
-		x++;
-		goto jump2;
-	}
-
 	tcp_flag_word(tcp_header) = TCP_FLAG_SYN | TCP_FLAG_ACK;
 	if (tsopt && (tsopt[0] & bpf_htonl(1 << 5)))
 		tcp_flag_word(tcp_header) |= TCP_FLAG_ECE;
