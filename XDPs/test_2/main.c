@@ -4,6 +4,11 @@
 SEC("xdp")
 int  xdp_prog(struct xdp_md *ctx)
 {
+	int x = 0;
+	int y = 4;
+	while((x=y)){
+		x++;
+	}
 	return XDP_PASS;
 }
 
