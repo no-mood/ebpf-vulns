@@ -23,17 +23,17 @@ make
 ```
 
 ```bash
-sudo ./xdp_synproxy --iface enp1s0 -mss4 1460 --mss6 1440 --wscale 7 --ttl 64 --ports 80
+sudo ./xdp_synproxy --iface enp1s0 --mss4 1460 --mss6 1440 --wscale 7 --ttl 64 --ports 80
 ```
 
 Then in another terminal : 
 
 ```bash
-sudo nc -npvl 80
+sudo nc -lvnp 80
 ```
 
 In the host do 
 
 ```bash
-sudo nc <address> 80
+sudo nc <address> 80 -v
 ```
