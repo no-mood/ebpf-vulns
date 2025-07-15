@@ -11,6 +11,8 @@ if [ -z "$IP_ADDR" ]; then
     exit 1
 fi
 
+# Vertical and Horizontal are inverted!
+
 # Start new tmux session with first pane
 tmux new-session -d -s $SESSION
 tmux send-keys -t $SESSION "sudo ./xdp_synproxy --iface $IFACE --mss4 1460 --mss6 1440 --wscale 7 --ttl 64 --ports 80" C-m
@@ -20,6 +22,10 @@ tmux split-window -h -t $SESSION
 tmux send-keys -t $SESSION "echo \"Run this command on the host: nc $IP_ADDR 80 -v\"" C-m
 tmux send-keys -t $SESSION "echo \"Started server listening on port 80\"" C-m
 tmux send-keys -t $SESSION "sudo nc -lvnp 80" C-m
+
+# Split vertically for third pane - trace pipe
+tmux split-window -v -t ${SESSION}:1.1
+tmux send-keys -t $SESSION "sudo cat /sys/kernel/debug/tracing/trace_pipe | grep \"XDP_DROP\"" C-m
 
 # Attach to the session
 tmux attach-session -t $SESSION
