@@ -41,31 +41,24 @@ USER_CFLAGS := -O2 -g -Wall \
                -lbpf -lbfd -lelf -lz -lcap -lmnl # Added -lbfd here
 
 # Default target: build everything
-all: $(BPF_OBJ) $(SKEL_H) $(USER_BIN)
+all: $(BPF_OBJ) $(USER_BIN)
 
 # Rule to compile BPF .c files into .o (BPF object files)
 # This rule applies to any .c file that needs to be compiled for the BPF target.
 %.bpf.o: %.c
 	$(CLANG) $(BPF_CFLAGS) -c $< -o $@
 
-# Rule to generate the BPF skeleton header from the BPF object file
-# This uses 'bpftool gen skeleton' to create a C header file that wraps the BPF program.
-$(SKEL_H): $(BPF_OBJ)
-	@echo "Generating BPF skeleton header: $@"
-	$(BPFTOOL) gen skeleton $< > $@
-
 # Rule to compile user-space .c files into executables
 # This rule applies to any .c file that needs to be compiled into a user-space binary.
-# This target depends on the user-space source file and the generated BPF skeleton header.
-# The user-space program will include $(SKEL_H) to load and manage the BPF program.
-$(USER_BIN): $(USER_SRC) $(SKEL_H)
+# This target depends on the user-space source file.
+$(USER_BIN): $(USER_SRC)
 	@echo "Compiling user-space program: $@"
 	$(CLANG) $(USER_CFLAGS) $< -o $@
 
 # Clean target: remove all generated files
 clean:
 	@echo "Cleaning compiled files..."
-	rm -f $(BPF_OBJ) $(SKEL_H) $(USER_BIN)
+	rm -f $(BPF_OBJ) $(USER_BIN)
 	@echo "Clean complete."
 
 # Phony targets to ensure Make doesn't confuse them with files of the same name
