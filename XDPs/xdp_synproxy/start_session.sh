@@ -25,7 +25,7 @@ tmux send-keys -t $SESSION "sudo nc -lvnp 80" C-m
 
 # Split vertically for third pane - trace pipe
 tmux split-window -v -t ${SESSION}:1.1
-tmux send-keys -t $SESSION "sudo cat /sys/kernel/debug/tracing/trace_pipe | grep \"XDP_DROP\"" C-m
+tmux send-keys -t $SESSION "sudo cat /sys/kernel/debug/tracing/trace_pipe" C-m
 
 # Attach to the session
 tmux attach-session -t $SESSION
