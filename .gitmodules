@@ -1,10 +1,4 @@
 
-[submodule "linux-kernel"]
-	path = linux-kernel
-	url = https://github.com/torvalds/linux.git
 [submodule "pretty-verifier"]
 	path = pretty-verifier
 	url = https://github.com/netgroup-polito/pretty-verifier.git
-[submodule "bpf-examples"]
-	path = bpf-examples
-	url = https://github.com/xdp-project/bpf-examples.git
