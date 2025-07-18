@@ -26,6 +26,7 @@ packages:
   - linux-tools-common  # Common kernel tools
   - tcpdump             # For analyzing network traffic (debugging and testing)
   - xdp-tools          # Tools for XDP (eXpress Data Path) programming
+  - binutils-dev
 
   # Other useful packages
   - iproute2            # Tools for configuring and managing network interfaces
