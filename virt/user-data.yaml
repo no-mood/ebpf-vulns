@@ -15,6 +15,8 @@ packages:
   - clang               # Compiler for eBPF programs
   - llvm                # Backend for clang
   - libelf-dev          # For working with ELF (Executable and Linkable Format)
+  - libcap-dev
+  - libmnl-dev
   - libpcap-dev         # For analyzing network packets
   - build-essential     # Compilation tools (includes make, gcc, etc.)
   - libc6-dev-i386      # Compatibility libraries for some builds
@@ -35,4 +37,4 @@ packages:
   - net-tools           # Legacy network tools (e.g., ifconfig)
   - vim                 # Text editor
   - libbpf-dev          # Library for interacting with eBPF programs
-  - linux-bpf-dev       # Vmlinux for arch and kernel version specifed 
+  - linux-bpf-dev       # Vmlinux for arch and kernel version specifed
