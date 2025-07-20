@@ -1,6 +1,6 @@
-From 7de8d86ad0da43afd7f9cc6cd79a5692241621ef Mon Sep 17 00:00:00 2001
+From 786bd33382f37d9a676ee136d02b751a0aa74369 Mon Sep 17 00:00:00 2001
 From: Francesco Rollo <eferollo@gmail.com>
-Date: Thu, 17 Jul 2025 23:19:41 +0000
+Date: Sun, 20 Jul 2025 11:26:36 +0000
 Subject: [PATCH] feat(5.26 diverr): Integer division errors
 
 Signed-off-by: Francesco Rollo <eferollo@gmail.com>
@@ -9,7 +9,7 @@ Signed-off-by: Francesco Rollo <eferollo@gmail.com>
  1 file changed, 35 insertions(+)
 
 diff --git a/XDPs/xdp_synproxy/xdp_synproxy_kern.c b/XDPs/xdp_synproxy/xdp_synproxy_kern.c
-index 0d0d990..fdfd368 100644
+index 0d0d990..6f94eab 100644
 --- a/XDPs/xdp_synproxy/xdp_synproxy_kern.c
 +++ b/XDPs/xdp_synproxy/xdp_synproxy_kern.c
 @@ -616,6 +616,41 @@ static __always_inline int syncookie_handle_syn(struct header_pointers *hdr,
@@ -33,10 +33,10 @@ index 0d0d990..fdfd368 100644
 +	 * (`tainted_divisor_val`) can be zero. The eBPF verifier is
 +	 * expected to diagnose this. -> From docs:
 +	 *
-+	 * If eBPF program execution would result in division by zero, 
++	 * If eBPF program execution would result in division by zero,
 +	 * the destination register is instead set to zero. If execution
-+	 * would result in modulo by zero, for BPF_ALU64 the value of 
-+	 * the destination register is unchanged whereas for BPF_ALU 
++	 * would result in modulo by zero, for BPF_ALU64 the value of
++	 * the destination register is unchanged whereas for BPF_ALU
 +	 * the upper 32 bits of the destination register are zeroed.
 +	 */
 +
@@ -50,7 +50,7 @@ index 0d0d990..fdfd368 100644
 +	*/
 +	bpf_printk("[diverr]: Divisor: %u, Div Result: %d, Mod Result: %d",
 +	       hdr->tcp->ack_seq, result_division, result_modulo);
-+	
++
  	/* Issue SYN cookies on allowed ports, drop SYN packets on blocked
  	 * ports.
  	 */
