@@ -10,6 +10,7 @@ import (
 	"xvtlas/logger"
 	"xvtlas/report"
 	"xvtlas/utils"
+	"strings"
 )
 func RunPipeline(rootPath, prettyPath, kernelVersion, exportPath string, interactive bool) {
 	var rows []report.CSVRow
@@ -57,7 +58,7 @@ func RunPipeline(rootPath, prettyPath, kernelVersion, exportPath string, interac
 			row.Compiled = false
 			row.LoadOutput += "No .o file found after make.\n"
 		} else {
-			utils.RunVerifier(oFile, ebpfFile, prettyPath, &row, cfg)
+			utils.RunVerifier(oFile, ebpfFile, prettyPath, cfg)
 			//utils.LoadEBPF(oFile, cfg, &row)
 		}
 
@@ -175,7 +176,7 @@ func RunPipelinePatch(patchRoot, baseFile, prettyPath, kernelVersion, exportPath
 			row.Compiled = false
 			row.LoadOutput += "No .o file found after make.\n"
 		} else {
-			utils.RunVerifier(oFile, patchedDest, prettyPath, &row, cfg)
+			utils.RunVerifier(oFile, patchedDest, prettyPath, cfg)
 			row.Loaded = row.Verified
 		}
 
@@ -202,5 +203,134 @@ func RunPipelinePatch(patchRoot, baseFile, prettyPath, kernelVersion, exportPath
 	}
 
 	report.ExportCSV(rows, exportPath)
+}
+
+func RunPipelineNew(patchRoot, baseFile, prettyPath, kernelVersion, exportPath string, interactive, saveLogsToFile bool) {
+	var rows []report.CSVRow
+
+	submoduleRoot := filepath.Dir(baseFile)
+	absSubmoduleRoot, err := filepath.Abs(submoduleRoot)
+	if err != nil {
+		logger.LogError(submoduleRoot, fmt.Sprintf("Failed to get absolute path: %s", err.Error()))
+		return
+	}
+
+	fmt.Println("Running pipeline")
+
+	err = filepath.Walk(patchRoot, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			logger.LogError(path, fmt.Sprintf("Walk error: %s", err.Error()))
+			return nil
+		}
+
+		if !info.IsDir() {
+			return nil
+		}
+
+		patchFiles, err := filepath.Glob(filepath.Join(path, "*.patch"))
+		if err != nil {
+			logger.LogError(path, fmt.Sprintf("Failed to glob patch files: %s", err.Error()))
+			return nil
+		}
+
+		for _, patchFile := range patchFiles {
+			fmt.Printf("Applying patch: %s\n", patchFile)
+
+			// Save original HEAD
+			origHeadCmd := exec.Command("git", "-C", absSubmoduleRoot, "rev-parse", "HEAD")
+			origHead, err := origHeadCmd.Output()
+			if err != nil {
+				logger.LogError("git rev-parse", "Failed to capture HEAD")
+				continue
+			}
+			origHeadStr := strings.TrimSpace(string(origHead))
+
+			absPatchFile, err := filepath.Abs(patchFile)
+			if err != nil {
+				logger.LogError(patchFile, fmt.Sprintf("Failed to get absolute path: %s", err.Error()))
+				continue
+			}
+
+			// Apply patch
+			applyCmd := exec.Command("git", "-C", absSubmoduleRoot, "am", absPatchFile)
+			if output, err := applyCmd.CombinedOutput(); err != nil {
+				logger.LogError(patchFile, fmt.Sprintf("Failed to apply patch: %s\nOutput: %s", err.Error(), string(output)))
+				_ = exec.Command("git", "-C", absSubmoduleRoot, "am", "--abort").Run()
+				continue
+			}
+
+			// Compile
+			compilationLog, err := utils.RunMake(absSubmoduleRoot)
+
+			row := report.CSVRow{
+				Filename:       patchFile,
+				LoadParameters: "none",
+				KernelVersion:  kernelVersion,
+				Compiled:       true,
+			}
+
+			if saveLogsToFile {
+				_ = os.WriteFile(filepath.Join(path, "make.log"), []byte(compilationLog), 0644)
+			}
+
+			if err != nil || strings.Contains(compilationLog, "error:") {
+				row.Compiled = false
+				row.LoadOutput += compilationLog
+				logger.LogError("Makefile", compilationLog)
+				logger.SaveLog(patchFile, row.LoadOutput)
+				rows = append(rows, row)
+				resetGit(absSubmoduleRoot, origHeadStr)
+				continue
+			}
+
+			// Check for object file
+			oFile := utils.FindObjectFile(absSubmoduleRoot)
+			if oFile == "" {
+				row.Compiled = false
+				row.LoadOutput += "No .o file found after make.\n"
+				logger.SaveLog(patchFile, row.LoadOutput)
+				rows = append(rows, row)
+				resetGit(absSubmoduleRoot, origHeadStr)
+				continue
+			}
+
+			// Run verifier
+			loadOutput := utils.RunVerifier(oFile, baseFile, prettyPath, nil)
+			row.LoadOutput += string(loadOutput)
+			row.Verified = !strings.Contains(string(loadOutput), "BPF program load failed")
+			row.Loaded = row.Verified
+
+			if saveLogsToFile {
+				_ = os.WriteFile(filepath.Join(path, "verifier.log"), loadOutput, 0644)
+			}
+
+			_ = exec.Command("sudo", "rm", "-f", filepath.Join("/sys/fs/bpf/", filepath.Base(oFile))).Run()
+			logger.SaveLog(patchFile, row.LoadOutput)
+			rows = append(rows, row)
+
+			resetGit(absSubmoduleRoot, origHeadStr)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		fmt.Println("Error scanning patch path:", err)
+	}
+
+	report.ExportCSV(rows, exportPath)
+
+	fmt.Println("\nFinal Report:")
+	for _, r := range rows {
+		status := "[ ]"
+		if r.Loaded {
+			status = "[✔]"
+		}
+		fmt.Printf("%s %s | Compiled: %v | Loaded: %v\n", status, r.Filename, r.Compiled, r.Loaded)
+	}
+}
+
+func resetGit(repoPath, commit string) {
+	_ = exec.Command("git", "-C", repoPath, "reset", "--hard", commit).Run()
 }
 

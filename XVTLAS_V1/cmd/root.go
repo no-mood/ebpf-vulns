@@ -18,7 +18,7 @@ var (
 	kernelVersion  string
 	patchPath      string
 	baseFile       string
-	keepPatched    bool
+	saveLogs	bool
 )
 
 var rootCmd = &cobra.Command{
@@ -46,8 +46,7 @@ var rootCmd = &cobra.Command{
 		logger.Init(verbose, exportPath)
 
 		if patchPath != "" {
-			removePatched := !keepPatched
-			ebpf.RunPipelinePatch(patchPath, baseFile, prettyFilePath, kernelVersion, exportPath, interactive, removePatched)
+			ebpf.RunPipelineNew(patchPath, baseFile, prettyFilePath, kernelVersion, exportPath, interactive, saveLogs)
 		} else {
 			ebpf.RunPipeline(rootPath, prettyFilePath, kernelVersion, exportPath, interactive)
 		}
@@ -63,7 +62,7 @@ func Execute() {
 	rootCmd.Flags().StringVar(&kernelVersion, "kernel", "", "Target kernel version for accounting")
 	rootCmd.Flags().StringVar(&patchPath, "patch-path", "", "Path to folders containing patches and configs")
 	rootCmd.Flags().StringVar(&baseFile, "base-file", "", "Absolute path to the master file to apply each patch to")
-	rootCmd.Flags().BoolVar(&keepPatched, "keep-patched", false, "Keep the patched file after running (default: false)")
+	rootCmd.Flags().BoolVar(&saveLogs, "save-logs", false, "Save logs for each patch (default: false)")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

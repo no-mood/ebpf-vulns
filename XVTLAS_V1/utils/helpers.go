@@ -39,23 +39,24 @@ func FindObjectFile(folderPath string) string {
 	return ""
 }
 
-func RunVerifier(oFile, cFile, prettyPath string, row *report.CSVRow, cfg *config.EBPFConfig) {
-	progName := cfg.EBPFProgram.Name
-	fmt.Println(progName)
-	if progName == "" {
+func RunVerifier(oFile, cFile, prettyPath string, cfg *config.EBPFConfig) []byte {
+	var progName string
+
+	if cfg == nil || cfg.EBPFProgram.Name == "" {
 		progName = filepath.Base(oFile)
+	} else {
+		progName = cfg.EBPFProgram.Name
 	}
 
 	pinPath := progName
 
 	cmdStr := fmt.Sprintf("sudo bpftool prog load %s /sys/fs/bpf/%s 2>&1 | python3 %s -c %s", oFile, pinPath, prettyPath, cFile)
-	fmt.Println("Comnmand : ",cmdStr)
+	fmt.Println("Running Verifier Command:", cmdStr)
+
 	cmd := exec.Command("bash", "-c", cmdStr)
-	output, err := cmd.CombinedOutput()
-	//fmt.Println("Verifier output: ",output)
-	//fmt.Println("Verifier errors: ", err)
-	row.Verified = err == nil
-	row.LoadOutput += string(output)
+	output, _ := cmd.CombinedOutput()
+
+	return output
 }
 
 func LoadEBPF(oFile string, cfg *config.EBPFConfig, row *report.CSVRow) {
