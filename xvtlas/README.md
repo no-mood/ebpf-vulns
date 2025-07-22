@@ -51,7 +51,7 @@ This compiles all programs found under `--path`, loads and verifies them using `
 ./xvtlas/xvtlas \
   --export "./output/" \
   --kernel "6.8.58" \
-  --patch-path "./rules/" \
+  --patch-path "./XDPs/xdp_synproxy/patches/" \
   --base-file "./linux-kernel/tools/testing/selftests/bpf/xdp_synproxy_kern.c" \
   --pretty "./pretty-verifier/pretty_verifier.py" \
   --verbose \
@@ -71,7 +71,7 @@ This will:
 
 ```bash
  ./xvtlas/xvtlas \
-  --run-single "./rules/0001-patch.diff" \
+  --run-single "./XDPs/xdp_synproxy/patches/path/to/patch/*.patch" \
   --base-file "./XDPs/xdp_synproxy/xdp_synproxy.c"
 ```
 

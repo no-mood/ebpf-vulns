@@ -354,6 +354,11 @@ func RunSingle(singlePatchPath string, baseFile string) {
 		os.Exit(1)
 	}
 
+	info, err := os.Stat(singlePatchPath)
+	if info.IsDir() || err != nil {
+		fmt.Printf("The path to patch is not a file (got: %s)", singlePatchPath)
+		os.Exit(1)
+	}
 
 	absSubmoduleRoot, err := filepath.Abs(filepath.Dir(baseFile))
 	if err != nil {
