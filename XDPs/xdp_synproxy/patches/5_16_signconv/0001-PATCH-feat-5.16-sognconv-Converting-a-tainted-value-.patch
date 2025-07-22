@@ -1,0 +1,75 @@
+From 7259a66b65ec49c8d19f3311266950dd927db7a5 Mon Sep 17 00:00:00 2001
+From: mood <74420740+no-mood@users.noreply.github.com>
+Date: Mon, 21 Jul 2025 13:43:30 +0200
+Subject: [PATCH] [PATCH] feat(5.16 sognconv): Converting a tainted value of
+ type char or signed char to a larger integer type without having first cast
+ the value to unsigned char shall be diagnosed if the value is subsequently
+ compared with the value of EOF.
+
+---
+ XDPs/xdp_synproxy/xdp_synproxy_kern.c | 42 +++++++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)
+
+diff --git a/XDPs/xdp_synproxy/xdp_synproxy_kern.c b/XDPs/xdp_synproxy/xdp_synproxy_kern.c
+index 0d0d990..3218a42 100644
+--- a/XDPs/xdp_synproxy/xdp_synproxy_kern.c
++++ b/XDPs/xdp_synproxy/xdp_synproxy_kern.c
+@@ -7,6 +7,8 @@
+ #include <bpf/bpf_endian.h>
+ #include <asm/errno.h>
+ 
++#define EOF (-1) // We can't import <stdio.h> in BPF programs, so we define EOF manually
++
+ #define TC_ACT_OK 0
+ #define TC_ACT_SHOT 2
+ 
+@@ -422,6 +424,46 @@ static __always_inline int tcp_dissect(void *data, void *data_end,
+ 	if (hdr->tcp_len < sizeof(*hdr->tcp))
+ 		return XDP_DROP;
+ 
++	/* 5.16 [signconv]: Conversion of signed characters to wider integer types before a check for EOF
++	 *
++	 * Based on 5.16 EXAMPLE where char is converted to int without first being cast to unsigned char.
++	 *
++	 * **Implementation Details:**
++	 * - Extract tainted data from TCP payload (simulates tainted string)
++	 * - Convert char directly to int without unsigned cast (VIOLATION)
++	 * - Compare result with EOF, causing false positive when char is 0xFF
++	 * - Demonstrates: "if char is signed, a 0xFF char can be confused with EOF"
++	 *
++	 * **Real-world impact:** Legitimate 0xFF bytes incorrectly interpreted as EOF.
++	 */
++
++	// In a real-world scenario, this would extract tainted data from TCP payload:
++	// char *tcp_payload = (char *)hdr->tcp + (hdr->tcp->doff * 4);
++	// if (tcp_payload + 1 <= (char *)data_end) {
++	//     char *tainted_str = tcp_payload;  // Real tainted data from network
++	//
++	// However, for testing purposes, we force specific test data to reliably
++	// demonstrate the signconv vulnerability:
++	char test_data[4] = {0x41, 0x42, 0xFF, 0x44};  // "AB\xFFD" - 0xFF is legitimate data
++
++	for (int i = 0; i < 4; i++) {
++		char *tainted_str = &test_data[i];  // Tainted data source
++
++		// Following the EXAMPLE pattern: yy_string_get function equivalent
++		int c = EOF;
++		if (tainted_str && *tainted_str) {
++			c = *tainted_str;  // VIOLATION: char → int without unsigned cast
++		}
++
++		// The problematic EOF check from the EXAMPLE
++		if (c == EOF) {  // diagnostic required - 0xFF char confused with EOF
++			bpf_printk("[signconv]: 5.16 - False EOF detected at position %d, char value: %d", i, c);
++			return XDP_DROP;  // Incorrect behavior due to false EOF
++		}
++
++		bpf_printk("[signconv]: 5.16 - Character %d parsed: %d (hex: 0x%x)", i, c, (unsigned char)c);
++	}
++
+ 	return XDP_TX;
+ }
+ 
+-- 
+2.49.0
+
