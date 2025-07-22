@@ -381,8 +381,8 @@ func RunSingle(singlePatchPath string, baseFile string) {
 	}
 
 	// Launch start_session.sh 
-	startSessionPath := filepath.Join(absSubmoduleRoot, "start_session.sh")
-	cmd := exec.Command("tmux", "new-session", "-s", "xvtlas_ui", startSessionPath)
+	cmd := exec.Command("tmux", "new-session", "-s", "xvtlas_ui", "./start_session.sh")
+	cmd.Dir = absSubmoduleRoot
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

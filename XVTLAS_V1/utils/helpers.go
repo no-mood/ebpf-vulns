@@ -106,6 +106,16 @@ func DestroyPreviousState() {
 		os.Exit(1)
 	}
 
+	fmt.Println("Running destroy_session.sh in:", baseDir)
+	destroyScript := exec.Command("bash", "destroy_session.sh")
+	destroyScript.Dir = baseDir
+	destroyScript.Stdout = os.Stdout
+	destroyScript.Stderr = os.Stderr
+	if err := destroyScript.Run(); err != nil {
+		fmt.Println("Warning: destroy_session.sh failed or missing:", err)
+		// continue cleanup anyway
+	}
+
 	fmt.Println("Cleaning build directory:", baseDir)
 	cleanCmd := exec.Command("make", "-C", baseDir, "clean")
 	cleanCmd.Stdout = os.Stdout
