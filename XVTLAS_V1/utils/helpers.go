@@ -8,6 +8,7 @@ import (
 	"xvtlas/report"
 	"xvtlas/config"
 	"path/filepath"
+	"strings"
 )
 
 func FileExists(path string) bool {
@@ -75,4 +76,42 @@ func RunMake(rootPath string) (string, error) {
 	output, err := cmd.CombinedOutput()
 	return string(output), err
 }
- 
+
+// DestroyPreviousState restores Git HEAD and runs `make clean`
+// using the state saved in /tmp/xvtlas.swp. It exits the program on failure.
+func DestroyPreviousState() {
+	const stateFile = "/tmp/xvtlas.swp"
+
+	data, err := os.ReadFile(stateFile)
+	if err != nil {
+		fmt.Println("Nothing to destroy or failed to read", stateFile)
+		os.Exit(1)
+	}
+
+	parts := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(parts) != 2 {
+		fmt.Println("Invalid state file format")
+		os.Exit(1)
+	}
+
+	head := parts[0]
+	baseDir := parts[1]
+
+	fmt.Println("Restoring Git HEAD to:", head)
+	resetCmd := exec.Command("git", "-C", baseDir, "reset", "--hard", head)
+	resetCmd.Stdout = os.Stdout
+	resetCmd.Stderr = os.Stderr
+	if err := resetCmd.Run(); err != nil {
+		fmt.Println("Failed to reset HEAD:", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("Cleaning build directory:", baseDir)
+	cleanCmd := exec.Command("make", "-C", baseDir, "clean")
+	cleanCmd.Stdout = os.Stdout
+	cleanCmd.Stderr = os.Stderr
+	_ = cleanCmd.Run()
+
+	_ = os.Remove(stateFile)
+	fmt.Println("✅ Restore and cleanup complete.")
+}

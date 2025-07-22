@@ -334,3 +334,62 @@ func resetGit(repoPath, commit string) {
 	_ = exec.Command("git", "-C", repoPath, "reset", "--hard", commit).Run()
 }
 
+func RunSingle(singlePatchPath string, baseFile string) {
+	absSubmoduleRoot, err := filepath.Abs(filepath.Dir(baseFile))
+	if err != nil {
+		logger.LogError(baseFile, fmt.Sprintf("Failed to get absolute base path: %s", err))
+		return
+	}
+
+	// Save HEAD and baseFile path to /tmp/xvtlas.swp
+	origHeadCmd := exec.Command("git", "-C", absSubmoduleRoot, "rev-parse", "HEAD")
+	origHead, err := origHeadCmd.Output()
+	if err != nil {
+		logger.LogError("git rev-parse", "Failed to get HEAD")
+		os.Exit(1)
+	}
+	head := strings.TrimSpace(string(origHead))
+	stateFileContent := fmt.Sprintf("%s\n%s\n", head, absSubmoduleRoot)
+	err = os.WriteFile("/tmp/xvtlas.swp", []byte(stateFileContent), 0644)
+	if err != nil {
+		logger.LogError("state-file", "Failed to write /tmp/xvtlas.swp")
+		os.Exit(1)
+	}
+
+	// Apply patch
+	absPatchFile, err := filepath.Abs(singlePatchPath)
+	if err != nil {
+		logger.LogError(singlePatchPath, fmt.Sprintf("Failed to resolve absolute patch path: %s", err))
+		os.Exit(1)
+	}
+
+	fmt.Println("Applying patch:", absPatchFile)
+	applyCmd := exec.Command("git", "-C", absSubmoduleRoot, "am", absPatchFile)
+	if output, err := applyCmd.CombinedOutput(); err != nil {
+		logger.LogError("git am", fmt.Sprintf("Failed to apply patch:\n%s", string(output)))
+		_ = exec.Command("git", "-C", absSubmoduleRoot, "am", "--abort").Run()
+		os.Exit(1)
+	}
+
+	// Compile
+	compilationLog, err := utils.RunMake(absSubmoduleRoot)
+	fmt.Println(compilationLog)
+
+	if err != nil || strings.Contains(compilationLog, "error:") {
+		logger.LogError("compile", "Compilation failed")
+		os.Exit(1)
+	}
+
+	// Launch start_session.sh 
+	startSessionPath := filepath.Join(absSubmoduleRoot, "start_session.sh")
+	cmd := exec.Command("tmux", "new-session", "-s", "xvtlas_ui", startSessionPath)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	fmt.Println("Starting interactive session (exit tmux to continue)...")
+	if err := cmd.Run(); err != nil {
+		logger.LogError("start_session", fmt.Sprintf("Failed to start session: %s", err))
+		os.Exit(1)
+	}
+}
