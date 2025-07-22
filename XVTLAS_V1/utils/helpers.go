@@ -107,7 +107,7 @@ func DestroyPreviousState() {
 	}
 
 	fmt.Println("Running destroy_session.sh in:", baseDir)
-	destroyScript := exec.Command("bash", "destroy_session.sh")
+	destroyScript := exec.Command("bash", "kill_session.sh")
 	destroyScript.Dir = baseDir
 	destroyScript.Stdout = os.Stdout
 	destroyScript.Stderr = os.Stderr
