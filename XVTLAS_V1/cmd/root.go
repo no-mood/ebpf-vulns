@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"strings"
 	"xvtlas/ebpf"
 	"xvtlas/logger"
 	"xvtlas/utils"
