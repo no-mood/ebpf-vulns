@@ -32,7 +32,7 @@ This will produce an `xvtlas` binary in the current directory.
 Run on a directory of eBPF programs:
 
 ```bash
-./XVTLAS_V1/xvtlas \
+./xvtlas/xvtlas \
   --export "./output/" \
   --kernel "6.8.58" \
   --path "./template_folders/" \
@@ -48,7 +48,7 @@ This compiles all programs found under `--path`, loads and verifies them using `
 ### 🩹 Patch-Based Mode
 
 ```bash
-./XVTLAS_V1/xvtlas \
+./xvtlas/xvtlas \
   --export "./output/" \
   --kernel "6.8.58" \
   --patch-path "./rules/" \
@@ -70,7 +70,7 @@ This will:
 ### 🧪 Single Patch Interactive Mode
 
 ```bash
- ./XVTLAS_V1/xvtlas \
+ ./xvtlas/xvtlas \
   --run-single "./rules/0001-patch.diff" \
   --base-file "./XDPs/xdp_synproxy/xdp_synproxy.c"
 ```
@@ -90,7 +90,7 @@ You can detach from the tmux session (`Ctrl + b`, then `d`) to return to the CLI
 ### Multi patch report creation 
 
 ```bash
-./XVTLAS_V1/xvtlas \
+./xvtlas/xvtlas \
   --export "./output/" \
   --kernel "v6.8" \
   --patch-path ./XDPs/xdp_synproxy/patches/ \
@@ -116,7 +116,7 @@ This will:
 To restore the git state and clean up a previous `--run-single` session:
 
 ```bash
- ./XVTLAS_V1/xvtlas --destroy
+ ./xvtlas/xvtlas --destroy
 ```
 
 This will:
