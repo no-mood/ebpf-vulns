@@ -275,9 +275,9 @@ func RunPipelineNew(patchRoot, baseFile, prettyPath, kernelVersion, exportPath s
 
 			if err != nil || strings.Contains(compilationLog, "error:") {
 				row.Compiled = false
-				row.LoadOutput += compilationLog
-				logger.LogError("Makefile", compilationLog)
-				logger.SaveLog(patchFile, row.LoadOutput)
+				//row.LoadOutput += compilationLog
+				//logger.LogError("Makefile", compilationLog)
+				logger.SaveLog(patchFile, compilationLog)
 				rows = append(rows, row)
 				resetGit(absSubmoduleRoot, origHeadStr)
 				continue
@@ -296,7 +296,7 @@ func RunPipelineNew(patchRoot, baseFile, prettyPath, kernelVersion, exportPath s
 
 			// Run verifier
 			loadOutput := utils.RunVerifier(oFile, baseFile, prettyPath, nil)
-			row.LoadOutput += string(loadOutput)
+			//row.LoadOutput += string(loadOutput)
 			row.Verified = !strings.Contains(string(loadOutput), "BPF program load failed")
 			row.Loaded = row.Verified
 
@@ -305,7 +305,7 @@ func RunPipelineNew(patchRoot, baseFile, prettyPath, kernelVersion, exportPath s
 			}
 
 			_ = exec.Command("sudo", "rm", "-f", filepath.Join("/sys/fs/bpf/", filepath.Base(oFile))).Run()
-			logger.SaveLog(patchFile, row.LoadOutput)
+			logger.SaveLog(patchFile, string(loadOutput))
 			rows = append(rows, row)
 
 			resetGit(absSubmoduleRoot, origHeadStr)
@@ -335,6 +335,15 @@ func resetGit(repoPath, commit string) {
 }
 
 func RunSingle(singlePatchPath string, baseFile string) {
+	swapFilePath := "/tmp/xvtlas.swp"
+
+	// Check if swap file already exists
+	if _, err := os.Stat(swapFilePath); err == nil {
+		fmt.Println("File already exists first run --destroy")
+		os.Exit(1)
+	}
+
+
 	absSubmoduleRoot, err := filepath.Abs(filepath.Dir(baseFile))
 	if err != nil {
 		logger.LogError(baseFile, fmt.Sprintf("Failed to get absolute base path: %s", err))
