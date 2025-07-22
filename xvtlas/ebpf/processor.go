@@ -251,6 +251,17 @@ func RunPipelineNew(patchRoot, baseFile, prettyPath, kernelVersion, exportPath s
 				continue
 			}
 
+			// Determine output subdirectory for logs
+			var outputDir string
+			if saveLogsToFile {
+				patchDir := filepath.Base(path)
+				outputDir = filepath.Join(exportPath, patchDir)
+				if err := os.MkdirAll(outputDir, 0755); err != nil {
+					logger.LogError(outputDir, fmt.Sprintf("Failed to create output directory: %s", err.Error()))
+					continue
+				}
+			}
+
 			// Apply patch
 			applyCmd := exec.Command("git", "-C", absSubmoduleRoot, "am", absPatchFile)
 			if output, err := applyCmd.CombinedOutput(); err != nil {
@@ -270,14 +281,14 @@ func RunPipelineNew(patchRoot, baseFile, prettyPath, kernelVersion, exportPath s
 			}
 
 			if saveLogsToFile {
-				_ = os.WriteFile(filepath.Join(path, "make.log"), []byte(compilationLog), 0644)
+				_ = os.WriteFile(filepath.Join(outputDir, "make.log"), []byte(compilationLog), 0644)
 			}
 
 			if err != nil || strings.Contains(compilationLog, "error:") {
 				row.Compiled = false
 				//row.LoadOutput += compilationLog
 				//logger.LogError("Makefile", compilationLog)
-				logger.SaveLog(patchFile, compilationLog)
+				//logger.SaveLog(patchFile, compilationLog)
 				rows = append(rows, row)
 				resetGit(absSubmoduleRoot, origHeadStr)
 				continue
@@ -301,11 +312,11 @@ func RunPipelineNew(patchRoot, baseFile, prettyPath, kernelVersion, exportPath s
 			row.Loaded = row.Verified
 
 			if saveLogsToFile {
-				_ = os.WriteFile(filepath.Join(path, "verifier.log"), loadOutput, 0644)
+				_ = os.WriteFile(filepath.Join(outputDir, "verifier.log"), loadOutput, 0644)
 			}
 
 			_ = exec.Command("sudo", "rm", "-f", filepath.Join("/sys/fs/bpf/", filepath.Base(oFile))).Run()
-			logger.SaveLog(patchFile, string(loadOutput))
+			//logger.SaveLog(patchFile, string(loadOutput))
 			rows = append(rows, row)
 
 			resetGit(absSubmoduleRoot, origHeadStr)
