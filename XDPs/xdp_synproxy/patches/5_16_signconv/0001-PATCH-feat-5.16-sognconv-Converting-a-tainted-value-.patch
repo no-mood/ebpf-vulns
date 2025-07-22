@@ -1,7 +1,7 @@
 From 7259a66b65ec49c8d19f3311266950dd927db7a5 Mon Sep 17 00:00:00 2001
 From: mood <74420740+no-mood@users.noreply.github.com>
 Date: Mon, 21 Jul 2025 13:43:30 +0200
-Subject: [PATCH] [PATCH] feat(5.16 sognconv): Converting a tainted value of
+Subject: [PATCH] [PATCH] feat(5.16 signconv): Converting a tainted value of
  type char or signed char to a larger integer type without having first cast
  the value to unsigned char shall be diagnosed if the value is subsequently
  compared with the value of EOF.
