@@ -1,0 +1,177 @@
+From d2b20b0e65158dd94c124252ab1d3f144ad0d096 Mon Sep 17 00:00:00 2001
+From: mood <74420740+no-mood@users.noreply.github.com>
+Date: Tue, 22 Jul 2025 12:59:25 +0200
+Subject: [PATCH] feat(5.10 initptrconv): Converting an integer type to a
+ pointer type shall be diagnosed if the resulting pointer is incorrectly
+ aligned, does not point to an entity of the referenced type, or is a trap
+ representation.
+
+---
+ XDPs/xdp_synproxy/xdp_synproxy_kern.c | 123 ++++++++++++++++++++++++++
+ 1 file changed, 123 insertions(+)
+
+diff --git a/XDPs/xdp_synproxy/xdp_synproxy_kern.c b/XDPs/xdp_synproxy/xdp_synproxy_kern.c
+index 0d0d990..da20e58 100644
+--- a/XDPs/xdp_synproxy/xdp_synproxy_kern.c
++++ b/XDPs/xdp_synproxy/xdp_synproxy_kern.c
+@@ -1,6 +1,26 @@
+ // SPDX-License-Identifier: LGPL-2.1 OR BSD-2-Clause
+ /* Copyright (c) 2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved. */
+ 
++/* PATCH 5.10: Converting a pointer to integer or integer to pointer [intptrconv]
++ *
++ * This patch demonstrates Rule 5.10 from ISO-IEC TS 17961-2013:
++ * "Converting a pointer type to an integer type shall be diagnosed if the result cannot be represented in
++ * the integer type."
++ *
++ * EXPLOITABLE VULNERABILITY DEMONSTRATED:
++ * Unsafe pointer arithmetic using truncated integer values that can bypass eBPF verifier bounds checking.
++ *
++ * SCENARIO: During TCP packet parsing, we convert packet data pointer to 32-bit integer for "optimization",
++ * losing the upper 32 bits on 64-bit systems. When we reconstruct pointers from these truncated values
++ * and perform arithmetic, we can create out-of-bounds pointers that the eBPF verifier cannot track.
++ *
++ * EXPLOITABILITY:
++ * - eBPF verifier validates bounds on original pointers
++ * - Truncated integer arithmetic can create pointers outside validated range
++ * - Reconstructed pointers may bypass verifier's bounds checking
++ * - Can lead to arbitrary memory access or information disclosure
++ */
++
+ #include "vmlinux.h"
+ 
+ #include <bpf/bpf_helpers.h>
+@@ -55,6 +75,9 @@
+ 
+ #define MAX_PACKET_OFF 0xffff
+ 
++/* Packet processing optimization that introduces vulnerability */
++#define PACKET_HEADER_SIZE 14
++
+ #define swap(a, b) \
+ 	do { typeof(a) __tmp = (a); (a) = (b); (b) = __tmp; } while (0)
+ 
+@@ -370,13 +393,29 @@ struct header_pointers {
+ 	__u16 tcp_len;
+ };
+ 
++/* VULNERABLE FUNCTION - Rule 5.10: Unsafe pointer-to-integer conversion causing bounds bypass
++ *
++ * EXPLOITABLE VULNERABILITY: This function converts the packet data pointer to a 32-bit integer
++ * for "optimization", losing precision on 64-bit systems. When we reconstruct pointers from
++ * these truncated values, we can create out-of-bounds pointers that bypass eBPF verifier checks.
++ */
+ static __always_inline int tcp_dissect(void *data, void *data_end,
+ 				       struct header_pointers *hdr)
+ {
++	__u32 data_base_truncated;
++	void *calculated_ptr;
++
+ 	hdr->eth = data;
+ 	if (hdr->eth + 1 > data_end)
+ 		return XDP_DROP;
+ 
++	/* VULNERABILITY - Rule 5.10: Unsafe pointer-to-integer conversion
++	 * Convert 64-bit packet data pointer to 32-bit integer for "optimization"
++	 * On 64-bit systems, this TRUNCATES the upper 32 bits! */
++	data_base_truncated = (__u32)(unsigned long)data; // diagnostic required - potential truncation!
++
++	bpf_printk("VULN: Truncated data ptr %p to 0x%x", data, data_base_truncated);
++
+ 	switch (bpf_ntohs(hdr->eth->h_proto)) {
+ 	case ETH_P_IP:
+ 		hdr->ipv6 = NULL;
+@@ -422,6 +461,90 @@ static __always_inline int tcp_dissect(void *data, void *data_end,
+ 	if (hdr->tcp_len < sizeof(*hdr->tcp))
+ 		return XDP_DROP;
+ 
++	/* EXPLOIT: Calculate TCP payload position using truncated integer arithmetic
++	 * This can bypass eBPF verifier bounds checking! */
++	__u32 payload_offset = PACKET_HEADER_SIZE; // Ethernet
++	if (hdr->ipv4) {
++		payload_offset += hdr->ipv4->ihl * 4; // IP header
++	} else if (hdr->ipv6) {
++		payload_offset += 40; // IPv6 header
++	}
++	payload_offset += hdr->tcp_len; // TCP header
++
++	/* ===============================================================================
++	 * VERIFIER BLOCKING ANALYSIS & BYPASS TECHNIQUE - Rule 5.10 Demonstration
++	 * ===============================================================================
++	 *
++	 * ORIGINAL CODE THAT WAS BLOCKED:
++	 * calculated_ptr = (void *)(unsigned long)(data_base_truncated + payload_offset);
++	 *
++	 * WHY THE VERIFIER BLOCKED IT:
++	 * 1. data_base_truncated = (__u32)(unsigned long)data  <-- Verifier tracks this as "derived from pointer"
++	 * 2. data_base_truncated + payload_offset              <-- Still considered "pointer arithmetic"
++	 * 3. (unsigned long)(...)                              <-- Requires bitwise operations (<<= 32)
++	 * 4. eBPF verifier rule: "NO bitwise operations on pointers!"
++	 * 5. Result: "R3 pointer arithmetic with <<= operator prohibited"
++	 *
++	 * BYPASS TECHNIQUE - SEPARATE THE OPERATIONS:
++	 * Break the conversion into discrete steps that hide pointer derivation from verifier
++	 */
++
++	/* STEP 1: Store truncated value as pure scalar (verifier loses pointer tracking) */
++	unsigned long reconstructed_addr = data_base_truncated; // diagnostic required - truncated pointer
++
++	/* STEP 2: Perform arithmetic on scalar (perfectly legal for verifier) */
++	reconstructed_addr += payload_offset; // Pure scalar arithmetic - verifier allows this
++
++	/* STEP 3: Convert scalar back to pointer (also legal - int-to-pointer conversion) */
++	calculated_ptr = (void *)reconstructed_addr; // diagnostic required - creates potentially invalid pointer
++
++	/* VULNERABILITY EXPLANATION:
++	 * - Original 'data' might be 0x7fff12345000 (64-bit address)
++	 * - data_base_truncated becomes 0x12345000 (lost upper 32 bits: 0x7fff0000!)
++	 * - reconstructed_addr = 0x12345000 + payload_offset (e.g., +54)
++	 * - calculated_ptr = 0x12345036 (WRONG! Should be 0x7fff12345036)
++	 * - Result: pointer to completely different memory region!
++	 */
++
++	/* ===============================================================================
++	 * EXPLOIT DEMONSTRATION - HOW THE BYPASS ENABLES DANGEROUS MEMORY ACCESS
++	 * =============================================================================== */
++
++	bpf_printk("EXPLOIT ANALYSIS: original_data=%p, calculated_ptr=%p, diff=%ld",
++	           data, calculated_ptr, (long)calculated_ptr - (long)data);
++
++	/* BOUNDS CHECK - This is where the real danger lies!
++	 * The verifier validates 'calculated_ptr + 4 <= data_end' as a normal bounds check
++	 * BUT it doesn't know calculated_ptr might point to completely wrong memory due to truncation! */
++	if (calculated_ptr + 4 <= data_end) {
++		__u32 *payload_data = (__u32 *)calculated_ptr;
++
++		/* CRITICAL SECURITY ISSUE:
++		 * This memory access might be:
++		 * 1. Reading from unintended memory location (information disclosure)
++		 * 2. Reading from unmapped memory (crash/denial of service)
++		 * 3. Bypassing intended security boundaries
++		 *
++		 * The verifier approved this because:
++		 * - It sees valid bounds check: ptr + 4 <= data_end ✓
++		 * - It can't track that 'calculated_ptr' was reconstructed from truncated value
++		 * - It assumes calculated_ptr is legitimately within packet boundaries
++		 */
++		bpf_printk("EXPLOIT SUCCESS: Reading from potentially wrong memory %p = 0x%x",
++		           calculated_ptr, *payload_data);
++
++		/* DEMONSTRATION: Show the memory access that shouldn't be allowed */
++		bpf_printk("SECURITY BREACH: Expected packet data, got value 0x%x from addr %p",
++		           *payload_data, calculated_ptr);
++
++	} else {
++		/* If bounds check fails, it means calculated_ptr is way outside packet bounds
++		 * This actually PROVES the truncation attack worked - the reconstructed pointer
++		 * is so wrong that even the basic bounds check catches it! */
++		bpf_printk("EXPLOIT DETECTED: Truncated pointer %p outside bounds (data_end=%p)",
++		           calculated_ptr, data_end);
++	}
++
+ 	return XDP_TX;
+ }
+ 
+-- 
+2.49.0
+
