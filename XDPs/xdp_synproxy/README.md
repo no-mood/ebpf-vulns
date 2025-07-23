@@ -134,3 +134,145 @@ Under this specific condition, the verifier allows the eBPF program to load, eve
 **Verifier:** Passed.
 
 *Signed-by: Francesco Rollo*
+
+### [5.6 argcomp]: Calling a function with the wrong number or type of arguments
+
+Calling functions with incorrect arguments, incompatible types, or mismatched prototypes leads to undefined behavior. This commonly occurs in multi-file projects where function declarations and definitions don't match.
+
+#### Example a: Function pointer type incompatibility
+
+Function pointers must be called with signatures compatible with their declared type. Using incompatible function pointer types leads to undefined behavior due to mismatched calling conventions and argument handling.
+
+**Implementation Details:**
+- A function pointer `fp_wrong_type` is declared with signature `__u16 ()()` (no arguments, returns `__u16`).
+- The pointer is assigned to `csum_fold`, which actually has signature `__u16 (__u32)` (takes one `__u32` argument).
+- The function is called through the incompatible pointer with two arguments, creating type incompatibility.
+- Demonstrates UB 26: "A pointer is used to call a function whose type is not compatible with the pointed-to type."
+- In eBPF context, the BPF calling convention limits arguments to 5, but the type mismatch still violates C standards.
+
+**Verifier:** Passed (compiles with warnings, but type incompatibility remains).
+
+#### Example b: Wrong argument count
+
+Calling a function with a different number of arguments than defined in its prototype results in undefined behavior, especially when the caller lacks the correct function prototype in scope.
+
+**Implementation Details:**
+- Forward declaration `network_copy_helper()` is made without parameters to simulate separate compilation units.
+- The function is called with 3 arguments (`src`, `dst`, `extra_buf`) but is actually defined to take only 2.
+- Simulates the "separate source file" scenario where the caller doesn't have the correct prototype.
+- Demonstrates UB 38: "For a call to a function without a function prototype in scope, the number of arguments does not equal the number of parameters."
+- The extra argument is passed but ignored by the actual function, potentially causing stack corruption in other contexts.
+
+**Verifier:** Passed (function call succeeds but with undefined argument handling).
+
+#### Example c: Variadic function without prototype
+
+Calling variadic functions (like printf-style functions) without proper prototypes in scope can lead to incorrect argument passing and undefined behavior.
+
+**Implementation Details:**
+- Forward declaration `debug_print_helper()` is made without parameters, hiding its variadic nature.
+- The function is called with format string and arguments like printf (`"Port value: %u at line %d", port_val, __LINE__`).
+- The actual function definition DOES support variable arguments, but the caller lacks the proper prototype.
+- Demonstrates UB 39: "For a call to a function without a function prototype in scope where the function is defined with a function prototype, either the prototype ends with an ellipsis or the types of the arguments after promotion are not compatible."
+- In eBPF, variadic functions are limited, but the principle of prototype mismatch applies.
+
+**Verifier:** Not passed (compilation fails due to conflicting function prototypes).
+
+#### Example d: Wrong argument types
+
+Calling functions with arguments of incompatible types leads to undefined behavior when the calling convention expects different data sizes or representations.
+
+**Implementation Details:**
+- Forward declaration `helper_function()` is made without parameters to simulate cross-file compilation.
+- The function is called with an `int` argument (`int_value`) but is actually defined to expect a `long`.
+- Simulates cross-file scenarios where caller uses wrong type assumptions.
+- Demonstrates UB 41: "A function is defined with a type that is not compatible with the type pointed to by the expression that denotes the called function."
+- The type mismatch between `int` and `long` can cause incorrect value interpretation, especially on systems where they differ in size.
+
+**Verifier:** Passed (function call succeeds but with potential data truncation/extension issues).
+
+*Signed-by: Giovanni Nicosia*
+
+### [5.10 intptrconv]: Converting a pointer type to an integer type or integer type to a pointer type
+
+Converting pointers to integers and back can lead to undefined behavior if the resulting pointer is incorrectly aligned, doesn't point to an entity of the referenced type, or creates invalid memory references. This is particularly dangerous in eBPF where pointer arithmetic is strictly controlled by the verifier.
+
+**Implementation Details:**
+- The patch demonstrates a "memory laundering" attack where a 64-bit packet data pointer is truncated to 32-bit (`data_base_truncated = (__u32)(unsigned long)data`), losing the upper 32 bits on 64-bit systems.
+- The truncated value is then used in scalar arithmetic (`reconstructed_addr += payload_offset`) which the verifier allows since it sees pure scalar operations.
+- Finally, the manipulated scalar is converted back to a pointer (`calculated_ptr = (void *)reconstructed_addr`), potentially creating an out-of-bounds pointer that bypasses verifier bounds checking.
+- The attack succeeds because the verifier loses track of pointer provenance when the conversion is broken into discrete steps, allowing unsafe memory access that should be blocked.
+
+**Verifier:** Passed (bypasses bounds checking through pointer provenance loss).
+
+*Signed-by: Giovanni Nicosia*
+
+### [5.16 signconv]: Converting a tainted value of type char or signed char to a larger integer type without first casting to unsigned char
+
+When `char` is signed (implementation-defined), converting directly to `int` without first casting to `unsigned char` can cause 0xFF bytes to be sign-extended to -1 (EOF), leading to false positives in EOF checks.
+
+#### Example a: Raw Version (Direct TCP payload access)
+
+**Implementation Details:**
+- Directly accesses TCP payload data (`char *tcp_payload = (char *)hdr->tcp + (hdr->tcp->doff * 4)`) without proper bounds checking.
+- Performs unsafe signed char to int conversion (`int c = raw_char`) where 0xFF becomes -1 instead of 255.
+- The problematic EOF comparison (`if (c == EOF)`) triggers false positives on legitimate 0xFF bytes.
+- This version is expected to fail verifier due to unbounded memory access of tainted network data.
+
+**Verifier:** Not passed (unsafe memory access).
+
+#### Example b: Verifier-Passing Version (Controlled demonstration)
+
+**Implementation Details:**
+- Uses controlled test data (`char test_data[4] = {0x41, 0x42, 0xFF, 0x44}`) to demonstrate the same vulnerability while passing verifier checks.
+- Shows how 0xFF bytes in legitimate data get confused with EOF due to sign extension.
+- Demonstrates the core vulnerability in a verifier-compatible way while maintaining the security implications.
+
+**Verifier:** Passed (controlled demonstration).
+
+*Signed-by: Giovanni Nicosia*
+
+### [5.17 swtchdflt]: Switch statement missing default case or incomplete enumeration coverage
+
+A switch statement with an enumerated controlling expression that lacks a default case and doesn't handle all enumeration constants can lead to undefined behavior when unhandled values are encountered.
+
+**Implementation Details:**
+- Defines a `firewall_action` enum with four values: `FIREWALL_ALLOW`, `FIREWALL_BLOCK`, `FIREWALL_REDIRECT`, and `FIREWALL_LOG`.
+- Integrates firewall classification into the `tcp_dissect` function based on destination port ranges, making the vulnerability realistic in network processing context.
+- The switch statement handles only 3 out of 4 enum values (missing `FIREWALL_REDIRECT` case) and lacks a default case.
+- When packets are classified with `FIREWALL_REDIRECT` action (ports 8000-8999), execution falls through with undefined behavior, potentially returning garbage values that could be interpreted as `XDP_ABORTED`.
+- Demonstrates how incomplete switch coverage can lead to security policy violations in real network filtering scenarios.
+
+**Verifier:** Passed (but causes undefined behavior on missing cases).
+
+*Signed-by: Giovanni Nicosia*
+
+### [5.36 ptrobj]: Subtracting or comparing pointers from different array objects
+
+Subtracting or relationally comparing pointers that don't refer to the same array object results in undefined behavior. This commonly occurs when accidentally mixing pointers from different memory regions.
+
+**Implementation Details:**
+- Creates two distinct objects: packet data from the network (Object 1) and a local stack buffer (Object 2).
+- Demonstrates the vulnerability by comparing pointers from these different objects (`if ((char *)hdr->eth != local_buffer)`), which is always true but undefined behavior.
+- Performs pointer subtraction between different objects (`ptrdiff_t wrong_distance = (char *)hdr->tcp - local_buffer`), producing meaningless results.
+- Shows relational comparisons (`if ((char *)hdr->eth > local_buffer)`) that have no defined meaning since the pointers reference unrelated memory regions.
+- Uses the undefined results in program logic (`if (wrong_distance != 0)`), demonstrating how such violations can lead to unpredictable program behavior and potential security issues.
+
+**Verifier:** Passed (but produces undefined results that may leak memory layout information).
+
+*Signed-by: Giovanni Nicosia*
+
+### [5.45 invfmtstr]: Invalid format strings in formatted I/O functions
+
+Using format strings with conversion specifiers that don't match the provided arguments, invalid flag combinations, or incorrect argument counts leads to undefined behavior and potentially exploitable vulnerabilities.
+
+**Implementation Details:**
+- **Type Mismatch (UB 160):** `bpf_printk("Parsing packet at offset %s\n", (long)data)` - %s expects string but receives integer, resulting in empty/garbage output.
+- **Invalid Precision (UB 155):** `bpf_printk("IPv4 bounds check failed: %.5x\n", ...)` - precision with %x conversion may produce undefined formatting.
+- **Argument Count Mismatch (UB 156):** `bpf_printk("IPv4 TCP header at %p, IHL=%d, proto=%d\n", hdr->tcp, hdr->ipv4->ihl)` - format has 3 specifiers but only 2 arguments provided.
+- **Invalid Flag Combination (UB 157):** `bpf_printk("IPv6 nexthdr: %#d\n", hdr->ipv6->nexthdr)` - # flag not valid with %d conversion specifier.
+- These violations don't cause verifier rejection but result in corrupted logging output, potentially hiding security events or leaking memory addresses through malformed prints.
+
+**Verifier:** Passed (format string errors not detected by verifier, manifest at runtime).
+
+*Signed-by: Giovanni Nicosia*
