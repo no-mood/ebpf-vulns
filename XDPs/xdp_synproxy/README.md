@@ -106,6 +106,40 @@ Converting pointers to integers and back can lead to undefined behavior if the r
 
 *Signed-by: Giovanni Nicosia*
 
+### [5.14 nullref]: Dereferencing a possibly null or invalid pointer
+
+Dereferencing pointers derived from potentially tainted input (e.g., packet headers) without validating them can result in undefined behavior, including invalid memory accesses or crashes.
+
+**Implementation Details:**
+- The helper function `null_copy_address()` is introduced to simulate a dereference on an input pointer.
+- A pointer `copy_from` is initialized to `&hdr->ipv4->saddr`, which assumes that `hdr->ipv4` is valid.
+- A buffer `input_string` of matching size (`sizeof(__be32)`) is allocated on the stack.
+- The function attempts to `__builtin_memcpy` from `copy_from` into `input_string`.
+- If `hdr->ipv4` is `NULL`, this dereference results in an invalid memory access, highlighting the risk of dereferencing unvalidated or tainted pointers in packet parsing logic.
+
+**Verifier:** Passed (invalid dereference not detected by static analysis).
+
+**Exploitable:** We would need to identify possible tainted value that would trigger the undefined behaviour.
+
+*Signed-by: Giorgio Fardo*
+
+### [5.15 addrescape]: Escaping the address of an automatic object
+
+Automatic (stack-allocated) variables exist only for the lifetime of the function in which they are defined. Returning or storing their address beyond that lifetime results in undefined behavior, as the memory may be overwritten or invalidated.
+
+**Implementation Details:**
+- The function `set_pointer()` defines a local string `char str[] = "TEst1"`.
+- It assigns the address of this local string to a pointer argument `*ptr_param`.
+- After `set_pointer()` returns, the pointer `ptr` in the caller still references `str`, which is now out of scope.
+- A call to `bpf_printk("Res: %s", ptr)` prints garbage or nothing, as the pointer references invalid memory.
+- Demonstrates how escaping stack addresses can result in use-after-scope bugs and potential memory corruption.
+
+**Verifier:** Passed (stack lifetime violations are not detected).
+
+**Exploitable:** Not really.
+
+*Signed-by: Giorgio Fardo*
+
 ### [5.16 signconv]: Converting a tainted value of type char or signed char to a larger integer type without first casting to unsigned char
 
 When `char` is signed (implementation-defined), converting directly to `int` without first casting to `unsigned char` can cause 0xFF bytes to be sign-extended to -1 (EOF), leading to false positives in EOF checks.
@@ -165,6 +199,36 @@ Why this approach? If the verifier statically determines that a divisor *could* 
 
 *Signed-by: Francesco Rollo*
 
+### [5.28 strmod]: Modifying string literals
+
+String literals in C are stored in read-only memory. Attempting to modify them results in undefined behavior, typically leading to a segmentation fault or silent failure.
+
+**Implementation Details:**
+- The helper function `setStringIndex()` assigns a string literal to a `char *` pointer: `char *str_literal = "This is a string literal";`.
+- It then attempts to modify the literal with `str_literal[loc / 100000000] = 'A';`, using a computed offset.
+- This operation is undefined behavior: string literals must not be written to.
+- Despite the violation, the verifier allows the code to pass since it does not track mutability of string literal memory.
+
+**Verifier:** Passed (modification of string literals not checked).
+
+**Exploitable:** can't think of a scenario that would cause issues.
+
+*Signed-by: Giorgio Fardo*
+
+### [5.30 intoflow]: Overflowing signed integers
+
+Integer overflow of signed types is undefined behavior in C. While unsigned integer overflow is well-defined, signed overflow can result in unpredictable behavior, especially if optimized away or miscompiled.
+
+**Implementation Details:**
+- The helper function `checkOverflow()` takes an `int` value and adds a large constant: `int result = value + 2147483647;`.
+- When `value` is positive, the addition causes a signed integer overflow.
+- The tainted value passed in is `bpf_htons(hdr->tcp->seq)`, which typically holds large values.
+- Overflows and underflows are managed with wrap so they are ignored by the verifier
+
+**Verifier:** Passed wrap used.
+
+*Signed-by: Giorgio Fardo*
+
 ### [5.31 nonnullcs]: Passing a non-null-terminated character sequence to a library function that expects a string
 
 A C string is a sequence of characters terminated by a null character (`\0`). For example, when `bpf_printk` is given a `%s` format specifier, it reads bytes sequentially from the provided pointer until it encounters a null character.
@@ -211,6 +275,22 @@ By targeting `hdr->tcp->seq`, a legitimate SYN packet, which should have led to 
 
 *Signed-by: Francesco Rollo*
 
+### [5.35 unint_mem]: Referencing uninitialized memory
+
+Using uninitialized memory results in undefined behavior. It can expose garbage values, leak data, or corrupt program logic depending on the compiler and runtime context.
+
+**Implementation Details:**
+- The function `uninitializedRead()` declares a pointer `char *uninit_ptr` without initializing it.
+- It then uses `__builtin_memcpy(buf, uninit_ptr, 64);`, reading from an uninitialized memory location.
+- The copied content (`buf`) is printed byte-by-byte with `bpf_printk()`, demonstrating random or garbage values.
+- This shows how lack of initialization can lead to unpredictable outcomes and violate memory safety.
+
+**Verifier:** Passed.
+
+**Exploitable:** dependes on runtime behaviour we might have signs or zero initialized stack
+
+*Signed-by: Giorgio Fardo*
+
 ### [5.36 ptrobj]: Subtracting or comparing pointers from different array objects
 
 Subtracting or relationally comparing pointers that don't refer to the same array object results in undefined behavior. This commonly occurs when accidentally mixing pointers from different memory regions.
@@ -225,6 +305,24 @@ Subtracting or relationally comparing pointers that don't refer to the same arra
 **Verifier:** Passed (but produces undefined results that may leak memory layout information).
 
 *Signed-by: Giovanni Nicosia*
+
+### [5.39 taintnoproto]: Calling a function through a pointer without a prototype using tainted input
+
+Calling a function through a pointer without a proper prototype leads to undefined behavior. If the function expects arguments and the caller provides incompatible or tainted input, the results are unpredictable.
+
+**Implementation Details:**
+- A function `restricted_sink(int i)` writes into an array using a tainted index: `s.array1[i] = 42;`.
+- A function pointer `pf` is assigned the address of `restricted_sink` but declared with no prototype (`void (*pf)()`).
+- The function is called with `(*pf)(tainted_val)`, where `tainted_val` is derived from `hdr->tcp->seq`, a value from the packet.
+- This violates UB 39 and UB 41 by combining a tainted input with a call to a function without a prototype.
+
+**Compiler warnings:** Deprecated passing argument to function without prototype
+
+**Verifier:** Passed (compiler allows call, type mismatch undetected).
+
+**Exploitable:** Stack limiters may be in place not really exploitable
+
+*Signed-by: Giorgio Fardo*
 
 ### [5.45 invfmtstr]: Invalid format strings in formatted I/O functions
 
