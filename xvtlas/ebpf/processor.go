@@ -319,6 +319,13 @@ func RunPipelineNew(patchRoot, baseFile, prettyPath, kernelVersion, exportPath s
 			//logger.SaveLog(patchFile, string(loadOutput))
 			rows = append(rows, row)
 
+			// Perform make clean
+			cleanCmd := exec.Command("make", "-C", absSubmoduleRoot, "clean")
+			if output, err := cleanCmd.CombinedOutput(); err != nil {
+				logger.LogError("make clean", fmt.Sprintf("Failed to run make clean: %s\nOutput: %s", err.Error(), string(output)))
+				// do not fail
+			}
+
 			resetGit(absSubmoduleRoot, origHeadStr)
 		}
 
