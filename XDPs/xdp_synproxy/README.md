@@ -373,4 +373,14 @@ Under this specific condition, the verifier allows the eBPF program to load, eve
 
 **Verifier:** Passed.
 
+#### Example 3
+
+**Implementation Details**
+
+- Inside `syncookie_handle_syn`, a `__u32 tainted_vla_size` variable is declared and initialized with a value derived from `hdr->tcp->doff * 4`. 
+- The line `char vla_buffer[tainted_vla_size]` attempts to declare a Variable Length Array `vla_buffer` using this runtime-determined size.
+- This program **will not pass verification**, regardless of the taintedness of `tainted_vla_size`. The eBPF verifier, as mentioned in the previous example, prohibits VLAs. The compilation succeeds, but the attempt to load such a BPF program into the kernel will result in a clear rejection message from the verifier.
+
+**Verifier:** Not passed.
+
 *Signed-by: Francesco Rollo*
