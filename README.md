@@ -142,6 +142,46 @@ Each vulnerability rule is implemented as a Git commit patch that modifies the b
 
 The patches are designed to demonstrate specific ISO-IEC TS 17961-2013 rule violations while maintaining the core SYN proxy functionality.
 
+### Rules Not Applicable to XDP/eBPF
+
+The following ISO-IEC TS 17961-2013 rules are **not applicable** to XDP/eBPF environments due to fundamental limitations and architectural differences:
+
+| Rule | Title | Category | Reason |
+|------|-------|----------|---------|
+| **5.2** | Accessing freed memory | Memory Management | No `free()` function or dynamic memory allocation |
+| **5.3** | Accessing shared objects in signal handlers | Signal Handling | No signal handling mechanism in eBPF programs |
+| **5.5** | Calling functions from signal handlers except abort, _Exit, signal | Signal Handling | No signal handling mechanism in eBPF programs |
+| **5.7** | Calling signal from interruptible signal handlers | Signal Handling | No signal handling mechanism in eBPF programs |
+| **5.8** | Calling system | Library Functions | No `system()` function available |
+| **5.12** | Copying a FILE object | File Operations | No file structures or FILE type available |
+| **5.18** | Failing to close files or free memory | Memory Management | No `malloc()` or file close operations available |
+| **5.19** | Failing to detect and handle stdlib errors | Library Functions | Limited standard library support |
+| **5.20** | Forming invalid pointers by library function | Library Functions | No libc functions available |
+| **5.21** | Allocating insufficient memory | Memory Management | No dynamic memory allocation (`malloc`) in eBPF |
+| **5.23** | Freeing memory multiple times | Memory Management | No `free()` function available |
+| **5.25** | Incorrect use of errno | Discarded | Not particularly relevant to eBPF testing |
+| **5.27** | Interleaving stream I/O without flush or positioning | File Operations | No buffered stdio operations |
+| **5.29** | Modifying getenv/localeconv/etc. return values | Library Functions | No `getenv()` or `setlocale()` functions |
+| **5.32** | Invalid chars to character-handling functions | Library Functions | Limited `ctype.h` support (questionable availability) |
+| **5.34** | Re/freeing non-dynamically allocated memory | Memory Management | No dynamic memory allocation or `free()` operations |
+| **5.37** | Tainted strings are passed to a string copying function | Format String | Limited string manipulation functions in eBPF context |
+| **5.38** | Taking size of pointer to get pointed-to size | Discarded | Not useful for eBPF vulnerability testing scenarios |
+| **5.40** | Tainted value used in formatted I/O | Format String | Limited formatted I/O capabilities |
+| **5.41** | Invalid value for fsetpos | File Operations | No file operations available |
+| **5.42** | Using object overwritten by getenv/localeconv/etc. | Library Functions | No libc environment functions |
+| **5.43** | Char values indistinguishable from EOF | File Operations | No file operations or EOF handling |
+| **5.44** | Using reserved identifiers | Discarded | Not relevant for security testing focus |
+
+**Note**: Rules 5.25, 5.38, and 5.44 are technically applicable to XDP/eBPF but were intentionally discarded as not useful for practical vulnerability testing.
+
+These exclusions reflect the constrained execution environment of eBPF programs, which operate in kernel space with:
+- No dynamic memory allocation
+- No signal handling  
+- Limited standard library access
+- No file system operations
+- Restricted system call access
+
+
 ### 6. XVTLAS - XDP Verifier Launch Automation Suite
 
 **XVTLAS** automates the entire process of:
