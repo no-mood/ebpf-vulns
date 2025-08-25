@@ -119,7 +119,7 @@ Dereferencing pointers derived from potentially tainted input (e.g., packet head
 
 **Verifier:** Passed (invalid dereference not detected by static analysis).
 
-**Exploitable:** We would need to identify possible tainted value that would trigger the undefined behaviour.
+**Exploitable:** If an attacker can craft a packet that omits or corrupts the IPv4 header, `hdr->ipv4` may resolve to `NULL` or an invalid pointer. In such a case, the dereference of `hdr->ipv4->saddr` would trigger an invalid memory access, which in eBPF could lead to verifier bypasses being overlooked in other contexts, or in non-BPF C code could cause kernel crashes or privilege escalation through controlled faulting behavior.
 
 *Signed-by: Giorgio Fardo*
 
@@ -136,8 +136,7 @@ Automatic (stack-allocated) variables exist only for the lifetime of the functio
 
 **Verifier:** Passed (stack lifetime violations are not detected).
 
-**Exploitable:** Not really.
-
+**Exploitable:** Not really — while this results in a dangling pointer, in eBPF the stack frame is strictly managed and reallocated per packet. The pointer cannot outlive the helper call context, so an attacker cannot reliably control or reuse the memory for malicious purposes beyond producing garbage logs.
 *Signed-by: Giorgio Fardo*
 
 ### [5.16 signconv]: Converting a tainted value of type char or signed char to a larger integer type without first casting to unsigned char
@@ -211,8 +210,7 @@ String literals in C are stored in read-only memory. Attempting to modify them r
 
 **Verifier:** Passed (modification of string literals not checked).
 
-**Exploitable:** can't think of a scenario that would cause issues.
-
+**Exploitable:** Not really — attempts to modify read-only memory holding literals will do nothing in this case. In eBPF, this results in program terminatio rather than memory corruption, so it cannot be weaponized by an attacker.
 *Signed-by: Giorgio Fardo*
 
 ### [5.30 intoflow]: Overflowing signed integers
@@ -225,7 +223,9 @@ Integer overflow of signed types is undefined behavior in C. While unsigned inte
 - The tainted value passed in is `bpf_htons(hdr->tcp->seq)`, which typically holds large values.
 - Overflows and underflows are managed with wrap so they are ignored by the verifier
 
-**Verifier:** Passed wrap used.
+**Verifier:** Passed, wrap used.
+
+**Exploitable:** Signed integer overflow in eBPF is not exploitable in practice, since the verifier tracks scalar ranges and arithmetic is defined modulo two’s complement in the JITed code path. At most, it causes incorrect logic branches (e.g., treating a valid sequence number as negative), but does not yield memory safety violations.
 
 *Signed-by: Giorgio Fardo*
 
@@ -287,7 +287,7 @@ Using uninitialized memory results in undefined behavior. It can expose garbage 
 
 **Verifier:** Passed.
 
-**Exploitable:** dependes on runtime behaviour we might have signs or zero initialized stack
+**Exploitable:** If the stack slot is not zeroed, uninitialized reads may leak kernel stack data to user space via `bpf_printk`, providing attackers with information disclosure. If zero-initialization happens at runtime, it reduces to benign behavior, but where disclosure occurs, it could aid in bypassing ASLR or building further attacks.
 
 *Signed-by: Giorgio Fardo*
 
@@ -320,7 +320,7 @@ Calling a function through a pointer without a proper prototype leads to undefin
 
 **Verifier:** Passed (compiler allows call, type mismatch undetected).
 
-**Exploitable:** Stack limiters may be in place not really exploitable
+**Exploitable:** Limited — although the call is undefined, in practice the compiler will generate a call instruction with a fixed calling convention. The tainted value may corrupt stack arguments or registers, but within eBPF’s restricted environment the damage is confined and cannot be steered toward arbitrary memory writes. It primarily results in unpredictable logic, not exploitable memory corruption.
 
 *Signed-by: Giorgio Fardo*
 
