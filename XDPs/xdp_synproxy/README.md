@@ -123,6 +123,24 @@ Dereferencing pointers derived from potentially tainted input (e.g., packet head
 
 *Signed-by: Giorgio Fardo*
 
+### [5.14a nullref ]: Dereferencing a possibly null or invalid pointer
+
+Dereferencing pointers that are only conditionally valid (e.g., depending on whether the packet is IPv4 or IPv6) without validating them first can result in undefined behavior, including invalid memory accesses or crashes.
+
+**Implementation Details:**
+- The helper function `null_copy_address_v6()` is introduced to simulate dereferencing of an IPv6 field without checking whether `hdr->ipv6` is valid.
+- A pointer `copy_from` is initialized to `&hdr->ipv6->daddr`, assuming `hdr->ipv6` is non-`NULL`.
+- A stack buffer `sink` of size `sizeof(struct in6_addr)` is allocated.
+- The function attempts to `__builtin_memcpy` from `copy_from` into `sink`.
+- If the packet being processed is IPv4, then `hdr->ipv6` is `NULL`, and the dereference of `hdr->ipv6->daddr` results in an invalid access.
+
+**Verifier:** Passed (no rejection by the BPF verifier). The verifier tracks packet parsing paths but does not detect that `hdr->ipv6` may be `NULL` here.
+
+**Exploitable:** If an attacker can send IPv4 traffic, `hdr->ipv6` will be `NULL`, and the dereference inside `null_copy_address_v6()` leads to an invalid pointer access. No real escape BPF attack path.
+
+*Signed-by: Giorgio Fardo*
+
+
 ### [5.15 addrescape]: Escaping the address of an automatic object
 
 Automatic (stack-allocated) variables exist only for the lifetime of the function in which they are defined. Returning or storing their address beyond that lifetime results in undefined behavior, as the memory may be overwritten or invalidated.
