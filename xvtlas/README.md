@@ -178,6 +178,22 @@ Each folder contains a patch to be applied to the same `--base-file`.
 
 ---
 
+## Report format and columns
+
+The report is a CSV file that is both showed on screen after the full run and saved in the `output` folder.
+
+In order we have : 
+- id : progressive number of the test
+- filename : name of the `.patch` file applied
+- load parameters : `unused`
+- vuln_number : `unused`
+- compiled : if it has compiled without errors
+- verified : if it has passed the verifier
+- loaded : if it correcly loaded and pinned the maps
+- load_output : `unused`
+
+---
+
 ## 📌 Notes
 
 - Programs are pinned under `/sys/fs/bpf/{program_name}` and unpinned automatically
