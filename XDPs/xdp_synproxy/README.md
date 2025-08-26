@@ -391,6 +391,8 @@ Integer overflow of signed types is undefined behavior in C. While unsigned inte
 - The tainted value passed in is `bpf_htons(hdr->tcp->seq)`, which typically holds large values.
 - Overflows and underflows are managed with wrap so they are ignored by the verifier
 
+**Warnings:** No extra.
+
 **Verifier:** Passed, wrap used.
 
 **Exploitable:** Signed integer overflow in eBPF is not exploitable in practice, since the verifier tracks scalar ranges and arithmetic is defined modulo two’s complement in the JITed code path. At most, it causes incorrect logic branches (e.g., treating a valid sequence number as negative), but does not yield memory safety violations.
@@ -571,7 +573,13 @@ Calling a function through a pointer without a proper prototype leads to undefin
 - The function is called with `(*pf)(tainted_val)`, where `tainted_val` is derived from `hdr->tcp->seq`, a value from the packet.
 - This violates UB 39 and UB 41 by combining a tainted input with a call to a function without a prototype.
 
-**Compiler warnings:** Deprecated passing argument to function without prototype
+**Compiler warnings:** Deprecated passing argument to function without prototype :
+```
+xdp_synproxy_kern.c:788:7: warning: passing arguments to a function without a prototype is deprecated in all versions of C and is not supported in C23 [-Wdeprecated-non-prototype]
+  788 |         (*pf)(bpf_htons(hdr->tcp->seq)/1000); //This is the tainted input into unproto function call
+      |              ^
+6 warnings generated.
+```
 
 **Verifier:** Passed (compiler allows call, type mismatch undetected).
 
