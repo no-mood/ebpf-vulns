@@ -410,6 +410,7 @@ The `restrict` keyword is a promise to the compiler that a pointer is the sole m
 
 When the `restrict` rule is broken, the compiler is free to perform aggressive optimizations based on the false assumption of non-aliasing. This can lead to **undefined and dangerous runtime behavior**, such as **superseded data reads**. The compiler might cache a value from memory and then reuse that cached value even after the memory has been modified by an aliasing `restrict` pointer, leading to incorrect program logic.
 
+#### Example 1
 
 **Implementation Details:**
 - A new helper function, `simulate_restrict_ub` takes two `char *restrict` pointers (`read_ptr_base`, `write_ptr_base`) and a new value.
@@ -427,6 +428,29 @@ affect the SYN-ACK's ack_seq value, forcing the client to retry the connection.
 By targeting `hdr->tcp->seq`, a legitimate SYN packet, which should have led to a SYN-ACK, is instead dropped due to an unpredictable internal state caused by the `restrict` violation.
 
 **Verifier**: Passed.
+
+**Exploitable**: Not in a security sense. Only causes **logic/data corruption** in local eBPF stack memory, since the memory is fully controlled by the program.  
+
+#### Example 2
+
+**Implementation Details**
+- A local stack buffer `tcp_options[16]` is declared inside `syncookie_handle_syn`.
+- Two pointers are defined:
+  - `ptr1` points to the start of the buffer.
+  - `ptr2` points 4 bytes into the buffer, overlapping with `ptr1`.
+- The noncompliant operation uses `__builtin_memcpy(ptr2, ptr1, 8)`:
+  - This copies 8 bytes from `ptr1` to `ptr2`, causing the source and destination
+    regions to overlap.
+  - Because `memcpy` semantics assume `restrict` pointers do not alias, this violates
+    the restrict contract.
+  - The compiler may optimize under the assumption of non-overlapping pointers,
+    leading to undefined behavior and possible corruption of the copied data.
+
+In the eBPF context only local stack memory is affected, so no arbitrary memory read/write occurs. The corruption is limited to the `tcp_options` buffer used for demonstration.
+  
+**Verifier:** Passed.
+
+**Exploitable:** Not in a security sense. It only causes local stack data corruption.
 
 *Signed-by: Francesco Rollo*
 
