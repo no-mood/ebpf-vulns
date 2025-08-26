@@ -373,6 +373,8 @@ A C string is a sequence of characters terminated by a null character (`\0`). Fo
 
 If a character array passed to such a function is *not* null-terminated within its allocated bounds, the function will continue reading past the end of the intended buffer.This constitutes an **out-of-bounds read**, leading to UB and potentially sensitive information leakage.
 
+#### Example 1
+
 **Implementation Details:**
 - A struct `test_memory_layout` is declared on the stack within `syncookie_handle_syn`. This struct is specifically designed to control the memory layout, ensuring the data is stored contiguously. This is important because the Verifier may place guards between individual stack variables.
 
@@ -384,6 +386,21 @@ If a character array passed to such a function is *not* null-terminated within i
 - The core violation is demonstrated when the non-null-terminated `string_buffer` is passed to `bpf_printk` with the `%s` format specifier. `bpf_printk` will attempt to read bytes from `test_memory_layout.string_buffer` until it encounters a null byte. In this controlled scenario, it would eventually read into the `filler_data` and potentially beyond until a zero byte is found.
 
 **Verifier**: Passed (Under controlled memory layout).
+
+**Exploitable**: Not really in practice. It depends on what type of information is disclosed in the controlled memory layout.
+
+#### Example 2
+
+**Implementation Details**
+- A small character array (e.g., char bad_str[3] = {'a', 'b', 'c'}) is allocated on the stack inside `syncookie_handle_syn`.
+- The array is deliberately not null-terminated.
+- When `bpf_printk` of the array is called, the `%s` specifier causes `bpf_printk` to read memory sequentially until it encounters a `\0` byte.
+- Since no terminator exists in the array, bpf_printk should keep reading into adjacent stack memory until a zero byte happens to be found.
+
+**Verifier**: Passed.
+
+**Exploitable**: Not really in practice. At worst, you might accidentally log adjacent stack contents, which is a form of information disclosure but is limited to what the eBPF program itself already has access to.
+The Verifier prevents the program to read adjacent memory content as it always zero initialize each stack frame.
 
 *Signed-by: Francesco Rollo*
 
