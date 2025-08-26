@@ -205,7 +205,7 @@ func RunPipelinePatch(patchRoot, baseFile, prettyPath, kernelVersion, exportPath
 	report.ExportCSV(rows, exportPath)
 }
 
-func RunPipelineNew(patchRoot, baseFile, prettyPath, kernelVersion, exportPath string, interactive, saveLogsToFile bool) {
+func RunPipelineNew(patchRoot, baseFile, prettyPath, kernelVersion, exportPath string, interactive, saveLogsToFile bool, keepPatched bool) {
 	var rows []report.CSVRow
 
 	submoduleRoot := filepath.Dir(baseFile)
@@ -313,6 +313,10 @@ func RunPipelineNew(patchRoot, baseFile, prettyPath, kernelVersion, exportPath s
 
 			if saveLogsToFile {
 				_ = os.WriteFile(filepath.Join(outputDir, "verifier.log"), loadOutput, 0644)
+			}
+
+			if keepPatched {
+				_ = exec.Command("cp", baseFile, outputDir).Run()
 			}
 
 			_ = exec.Command("sudo", "rm", "-f", filepath.Join("/sys/fs/bpf/", filepath.Base(oFile))).Run()

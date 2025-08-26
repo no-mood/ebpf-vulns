@@ -22,6 +22,7 @@ var (
 	saveLogs        bool
 	runSingle       string
 	destroy         bool
+	keepPatched	bool
 )
 
 var rootCmd = &cobra.Command{
@@ -89,7 +90,7 @@ var rootCmd = &cobra.Command{
 					fmt.Println("Error: --base-file is required with --patch-path")
 					os.Exit(1)
 				}
-				ebpf.RunPipelineNew(patchPath, baseFile, prettyFilePath, kernelVersion, exportPath, interactive, saveLogs)
+				ebpf.RunPipelineNew(patchPath, baseFile, prettyFilePath, kernelVersion, exportPath, interactive, saveLogs, keepPatched)
 			} else {
 				ebpf.RunPipeline(rootPath, prettyFilePath, kernelVersion, exportPath, interactive)
 			}
@@ -109,6 +110,7 @@ func Execute() {
 	rootCmd.Flags().BoolVar(&saveLogs, "save-logs", false, "Save logs for each patch (default: false)")
 	rootCmd.Flags().StringVar(&runSingle, "run-single", "", "Run a single patch file against a base file")
 	rootCmd.Flags().BoolVar(&destroy, "destroy", false, "Restore Git HEAD and clean build based on last state")
+	rootCmd.Flags().BoolVar(&keepPatched, "keep-patched", false, "Keeps the patch applied base file for every patch in the output folder")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
