@@ -190,6 +190,28 @@ Dereferencing pointers that are only conditionally valid (e.g., depending on whe
 
 *Signed-by: Giorgio Fardo*
 
+### [5.14b nullref]: Unchecked dereference of map lookup result
+
+Dereferencing pointers returned by helper functions such as `bpf_map_lookup_elem()` without validating them can result in undefined behavior if the lookup fails (i.e., returns `NULL`). This can lead to invalid memory accesses and subtle runtime failures.
+
+**Implementation Details:**
+- The helper function `unsafe_values_peek()` is introduced to simulate dereferencing the result of a BPF map lookup without checking for `NULL`.
+- A key (`__u32 key = 1234`) is chosen outside of the defined range of the map on purpose, so the lookup will usually fail.
+- A pointer `value` is initialized to the return value of `bpf_map_lookup_elem(&values, &key)`.
+- A stack buffer `buf` of matching size (`sizeof(__u64)`) is allocated.
+- The function attempts to `__builtin_memcpy` from `value` into `buf` without verifying whether `value` is valid.
+- If `bpf_map_lookup_elem()` returns `NULL` (no element present), this results in an invalid dereference.
+
+**Verifier:** Passed. The BPF verifier does not enforce `NULL` checks for map lookups; it assumes that programs handle failures correctly. As a result, the invalid dereference is not detected at load time.
+
+**Observed Behavior:** The program compiles cleanly, passes verification, and loads without warnings. During runtime testing, the debug prints are visible, but sometimes the program resets connections (e.g., connection resets observed when connecting via `nc` to a netcat server behind the synproxy). This suggests that the unchecked dereference may cause intermittent failures or program termination during packet processing.
+
+**Exploitable:**  
+- In eBPF: While the safety model typically prevents persistent kernel memory corruption, unchecked dereferencing of `NULL` can still terminate the BPF program or cause subtle disruptions (e.g., dropped packets, unexpected resets). This can be leveraged as a DoS, where crafted traffic triggers repeated invalid map lookups, forcing the BPF program to reset connections or abort processing.  
+
+*Signed-by: Giorgio Fardo*
+
+
 
 ### [5.15 addrescape]: Escaping the address of an automatic object
 
@@ -206,6 +228,54 @@ Automatic (stack-allocated) variables exist only for the lifetime of the functio
 
 **Exploitable:** Not really — while this results in a dangling pointer, in eBPF the stack frame is strictly managed and reallocated per packet. The pointer cannot outlive the helper call context, so an attacker cannot reliably control or reuse the memory for malicious purposes beyond producing garbage logs.
 *Signed-by: Giorgio Fardo*
+
+**Extra warnings**: 
+
+### [5.15a addrescape]: Escaping the address of an automatic object
+
+Automatic (stack-allocated) variables exist only for the lifetime of the function in which they are defined. Returning or storing their address beyond that lifetime results in undefined behavior, as the memory may be overwritten or invalidated.
+
+**Implementation Details:**
+- The function `init_array()` defines a local array `int array[5] = { 1, 2, 3, 4, 5 }`.
+- It incorrectly returns the address of this local array.
+- In `syncookie_part1()`, the pointer `arr_ptr` receives this address and is later dereferenced in a `bpf_printk` call.
+- After `init_array()` returns, `array` is out of scope, so `arr_ptr` references invalid memory.
+- The program still logs `"Leaked array[0]: 1"`, but this is undefined behavior and may produce garbage in other contexts.
+- Demonstrates how escaping stack addresses can result in dangling pointers and potential use-after-scope bugs.
+
+**Verifier:** Passed (stack lifetime violations are not detected).
+
+**Warnings:**  
+
+xdp_synproxy_kern.c:761:9: warning: address of stack memory associated with local variable 'array' returned [-Wreturn-stack-address]
+761 | return array; // diagnostic required
+| ^~~~~
+6 warnings generated.
+
+
+**Exploitable:** Not really — while this results in a dangling pointer, in eBPF the stack frame is strictly managed and reallocated per packet. The pointer cannot outlive the helper call context, so an attacker cannot reliably control or reuse the memory for malicious purposes beyond producing garbage logs.
+
+*Signed-off-by: Giorgio Fardo*
+
+### [5.15b addrescape]: Escaping the address of an automatic object
+
+Automatic (stack-allocated) variables exist only for the lifetime of the function in which they are defined. Returning or storing their address beyond that lifetime results in undefined behavior, as the memory may be overwritten or invalidated.
+
+**Implementation Details:**
+- The helper function `squirrel_away()` defines a local string `char fmt[] = "Error: %s\n"`.
+- It stores the address of this local array into a pointer argument `*ptr_param`.
+- In `syncookie_part1()`, the caller receives this escaped pointer into `fmt_ptr`.
+- After `squirrel_away()` returns, `fmt` is out of scope, so `fmt_ptr` references invalid memory.
+- A call to `bpf_printk("Escaped fmt string: %s", fmt_ptr)` may appear to work, but the pointer is dangling and the behavior is undefined.
+- This demonstrates how stack addresses can escape through function parameters, leading to use-after-scope bugs.
+
+**Verifier:** Passed (stack lifetime violations are not detected).
+
+**Warnings:** None (compiled, loaded, and verified successfully).
+
+**Exploitable:** Not really — as with the first case, although this creates a dangling pointer, in eBPF the stack frame is strictly managed and reset per packet. The pointer cannot persist across contexts, so attackers cannot exploit it beyond producing garbage or misleading logs.
+
+*Signed-off-by: Giorgio Fardo*
 
 ### [5.16 signconv]: Converting a tainted value of type char or signed char to a larger integer type without first casting to unsigned char
 
