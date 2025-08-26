@@ -104,6 +104,8 @@ Initially, we followed the Linux kernel selftests approach using a 3-veth (virtu
 
 ### 5. Vulnerability Patches
 
+Progress tracker and recap : https://docs.google.com/spreadsheets/d/17zbtS0Jd2qmZblBeo4BnHuop_OvKTKCIsaw-80wdXXQ/edit?usp=sharing
+
 All vulnerability patches target `xdp_synproxy_kern.c`, an XDP-based SYN proxy implementation taken from the Linux kernel selftests. The `XDPs/xdp_synproxy/patches/` directory contains vulnerability patches for each applicable rule from ISO-IEC TS 17961-2013:
 
 | Rule | Directory | Vulnerability Type |
