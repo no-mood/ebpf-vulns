@@ -6,6 +6,8 @@ All the patches described below refer to C secure coding rules contained in the 
 
 Frequent mistake in C/C++ is typing `if (x = y)` instead of `if (x == y)`. The assignment expression `(x = y)` evaluates to the value assigned to `x`. If `y` is non-zero, the condition is always true, regardless of `x`'s initial value. This can lead to bugs where code branches are taken unexpectedly or loops become infinite.
 
+#### Example 1
+
 **Implementation Details:**
 - The patch introduces a `while` loop with a direct assignment in its conditional: `while (processed_len = current_tcp_len) { ... }`. The purpose is to emulate a potential mistake in the while condition for processing a TCP header.
 - `current_tcp_len` is derived from `hdr->tcp_len`, which for a valid TCP header, will always be a non-zero value (minimum 20 bytes).
@@ -13,7 +15,55 @@ Frequent mistake in C/C++ is typing `if (x = y)` instead of `if (x == y)`. The a
 
 The eBPF verifier, through its static analysis of register states and control flow, will correctly identify this `while` loop as an **infinite loop**. As a result, the eBPF verifier will reject the program load.
 
-**Verifier:** Not passed.
+**Verifier:** Not passed (infinite loop detected).
+
+**Extra warnings**: 
+
+```
+xdp_synproxy_kern.c:631:27: warning: using the result of an assignment as a condition without parentheses [-Wparentheses]
+  631 |         while (processed_len = current_tcp_len) {
+      |                ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~
+xdp_synproxy_kern.c:631:27: note: place parentheses around the assignment to silence this warning
+  631 |         while (processed_len = current_tcp_len) {
+      |                              ^                
+      |                (                              )
+xdp_synproxy_kern.c:631:27: note: use '==' to turn this assignment into an equality comparison
+  631 |         while (processed_len = current_tcp_len) {
+      |                              ^
+      |                              ==
+```
+
+**Exploitable:** Not possible.
+
+#### Example 2
+
+**Implementation Details:**
+- This version introduces a `do ... while` loop with a direct assignment in its conditional:  
+  `do { ... } while (processed_len = current_tcp_len);`.
+- Unlike the `while` version, the `do ... while` construct guarantees that the loop body will execute **at least once**, even if `hdr->tcp_len` (`current_tcp_len`) is zero.
+- Since `hdr->tcp_len` represents the TCP header length, it is normally non-zero (minimum 20 bytes). This means the condition `(processed_len = current_tcp_len)` always evaluates to true.
+
+The eBPF verifier, through its static analysis of register states and control flow, will correctly identify this `do..while` loop as an **infinite loop**. As a result, the eBPF verifier will reject the program load.
+
+**Verifier:** Not passed (infinite loop detected).
+
+**Extra warnings**: 
+
+```
+xdp_synproxy_kern.c:626:25: warning: using the result of an assignment as a condition without parentheses [-Wparentheses]
+  626 |         } while (processed_len = current_tcp_len);
+      |                  ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~
+xdp_synproxy_kern.c:626:25: note: place parentheses around the assignment to silence this warning
+  626 |         } while (processed_len = current_tcp_len);
+      |                                ^                
+      |                  (                              )
+xdp_synproxy_kern.c:626:25: note: use '==' to turn this assignment into an equality comparison
+  626 |         } while (processed_len = current_tcp_len);
+      |                                ^
+      |                                ==
+```
+
+**Exploitable:** Not possible.
 
 *Signed-by: Francesco Rollo*
 
