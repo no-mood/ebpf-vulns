@@ -111,7 +111,8 @@ All vulnerability patches target `xdp_synproxy_kern.c`, an XDP-based SYN proxy i
 | Rule | Directory | Vulnerability Type |
 |------|-----------|-------------------|
 | 5.1 | `5_01_invalidptr/` | Creation of invalid pointers through out-of-bounds indexing |
-| 5.4 | `5_4_boolasgn/` | Assignment in conditional expressions |
+| 5.4 | `5_4_boolasgn/` | Assignment in conditional expressions (variant 1) |
+| 5.4 | `5_4_boolasgn_2/` | Assignment in conditional expressions (variant 2) |
 | 5.6a | `5_06a_argcomp/` | Calling functions with wrong number of arguments |
 | 5.6b | `5_06b_argcomp/` | Calling functions with wrong argument types |
 | 5.6c | `5_06c_argcomp/` | Calling functions with wrong argument structures |
@@ -129,14 +130,17 @@ All vulnerability patches target `xdp_synproxy_kern.c`, an XDP-based SYN proxy i
 | 5.26 | `5_26_diverr/` | Integer division errors |
 | 5.28 | `5_28_strmod/` | Modifying string literals |
 | 5.30 | `5_30_intoflow/` | Signed integer overflow |
-| 5.31 | `5_31_nonnullcs/` | Non-null-terminated character sequences |
-| 5.33 | `5_33_restrict/` | Pointers into the same object with restrict qualifier |
+| 5.31 | `5_31_nonnullcs/` | Non-null-terminated character sequences (variant 1) |
+| 5.31 | `5_31_nonnullcs_2/` | Non-null-terminated character sequences (variant 2) |
+| 5.33 | `5_33_restrict/` | Pointers into the same object with restrict qualifier (variant 1) |
+| 5.33 | `5_33_restrict_2/` | Pointers into the same object with restrict qualifier (variant 2) |
 | 5.35 | `5_35_uninit_mem/` | Referencing uninitialized memory |
 | 5.36 | `5_36_ptrobj/` | Pointer comparison/subtraction from different objects |
 | 5.39 | `5_39_taintnoproto/` | Using tainted values as function pointers without prototypes |
 | 5.45 | `5_45_invfmtstr/` | Invalid format strings |
 | 5.46 | `5_46_taintsink_1/` | Tainted potentially mutilated non-character data (variant 1) |
 | 5.46 | `5_46_taintsink_2/` | Tainted potentially mutilated non-character data (variant 2) |
+| 5.46 | `5_46_taintsink_3/` | Tainted potentially mutilated non-character data (variant 3) |
 
 Each vulnerability rule is implemented as a Git commit patch that modifies the base `xdp_synproxy_kern.c` file. These patches can be:
 - **Applied manually**: Use `git apply` or `git am` to apply individual patches for manual testing

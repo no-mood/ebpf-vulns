@@ -140,6 +140,8 @@ If two instances of an identical-looking struct have their data fields set to th
 
 **Verifier:** Passed.
 
+**Exploitable**: The issue only affects stack padding bytes within the local `padded_config_data` struct. Even though memcmp may behave non-deterministically due to uninitialized padding, this does not expose arbitrary memory outside the eBPF program’s stack. The “exploitation” is limited to logic non-determinism inside the program (e.g., occasional XDP_DROP), not a security vulnerability.
+
 *Signed-by: Francesco Rollo*
 
 ### [5.10 intptrconv]: Converting a pointer type to an integer type or integer type to a pointer type
@@ -581,6 +583,8 @@ In this particular case the eBPF verifier performs a correct memory validation. 
 
 **Verifier:** Not passed.
 
+**Exploitable:** Not possible.
+
 #### Example 2
 
 **Implementation Details:**
@@ -596,6 +600,10 @@ Under this specific condition, the verifier allows the eBPF program to load, eve
 
 **Verifier:** Passed.
 
+**Exploitable:** 
+- Memory safety exploitation (kernel R/W): No, not possible.
+- Logic exploitation (attacker-controlled packet alteration): Yes, possible.
+
 #### Example 3
 
 **Implementation Details**
@@ -605,5 +613,7 @@ Under this specific condition, the verifier allows the eBPF program to load, eve
 - This program **will not pass verification**, regardless of the taintedness of `tainted_vla_size`. The eBPF verifier, as mentioned in the previous example, prohibits VLAs. The compilation succeeds, but the attempt to load such a BPF program into the kernel will result in a clear rejection message from the verifier.
 
 **Verifier:** Not passed.
+
+**Exploitable:** Not possible.
 
 *Signed-by: Francesco Rollo*
