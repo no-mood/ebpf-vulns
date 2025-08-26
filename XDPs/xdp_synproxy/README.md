@@ -446,6 +446,50 @@ Using uninitialized memory results in undefined behavior. It can expose garbage 
 
 *Signed-by: Giorgio Fardo*
 
+### [5.35a unintref]: Referencing uninitialized automatic variable
+Using an uninitialized automatic (stack) variable leads to undefined behavior. The value of such a variable is indeterminate until explicitly assigned, and reading it may yield garbage, stale stack data, or trigger compiler-dependent optimizations that alter program flow.  
+
+**Implementation Details:**
+- The function `uninitialized_auto_var_read()` declares an integer `int uninit_int;` without initializing it.
+- It immediately checks `if (uninit_int == 0)` and logs via `bpf_printk()` whether the "uninitialized value" appeared as zero or not.
+- Because `uninit_int` is not given a defined value, its contents come directly from the kernel stack, making the comparison unpredictable.
+- The call to `uninitialized_auto_var_read()` was inserted in `syncookie_part1()`, ensuring that the function is exercised whenever this path is triggered.
+
+**Verifier:** Passed.
+
+**Exploitable:** This pattern risks leaking kernel stack data to user space via `bpf_printk()`, depending on how the verifier and runtime handle uninitialized stack slots. In contexts where stack slots are not cleared, this can expose sensitive information, potentially aiding exploitation strategies such as ASLR bypass or kernel memory disclosure. If the compiler or runtime zero-initializes the stack, the behavior reduces to a benign but misleading test case.
+
+**Warnings:**
+```
+xdp_synproxy_kern.c:762:9: warning: variable 'uninit_int' is uninitialized when used here [-Wuninitialized]
+  762 |     if (uninit_int == 0) { // Reading indeterminate value
+      |         ^~~~~~~~~~
+xdp_synproxy_kern.c:760:19: note: initialize the variable 'uninit_int' to silence this warning
+  760 |     int uninit_int; // uninitialized automatic variable
+      |                   ^
+      |                    = 0
+
+```
+
+*Signed-by: Giorgio Fardo*
+
+### [5.35b uninitmem]: Expanding and accessing uninitialized packet memory
+This test demonstrates how dynamically adjusting packet size can expose uninitialized memory regions to BPF programs. Reading from these regions introduces undefined behavior and risks leaking kernel data.
+
+**Implementation Details:**  
+- The helper `uninitialized_packet_read()` attempts to grow the packet buffer using `bpf_xdp_adjust_tail(ctx, add_len)`.
+- If successful, a new tail region is exposed but not initialized by the kernel.  
+- The function then iterates over this extended area, reading each byte and logging its content with `bpf_printk()`.
+- This simulates a scenario where uninitialized packet data could be observed, potentially leaking sensitive information or introducing nondeterministic behavior.  
+
+**Verifier:** Failed with `"R1 invalid mem access 'scalar'"`.
+
+**Exploitable:** Not exploitable in this state.
+
+**Warnings:** No extra warning.
+
+*Signed-off: Giorgio Fardo*
+
 ### [5.36 ptrobj]: Subtracting or comparing pointers from different array objects
 
 Subtracting or relationally comparing pointers that don't refer to the same array object results in undefined behavior. This commonly occurs when accidentally mixing pointers from different memory regions.
