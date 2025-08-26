@@ -122,7 +122,11 @@ All vulnerability patches target `xdp_synproxy_kern.c`, an XDP-based SYN proxy i
 | 5.11 | `5_11_alignptr/` | Accessing memory through misaligned pointers |
 | 5.13 | `5_13_objdec/` | Accessing objects through incompatible effective types |
 | 5.14 | `5_14_nullref/` | Null pointer dereferencing and out-of-domain pointers |
+| 5.14a | `5_14a_nullref/` | Null pointer dereferencing and out-of-domain pointers |
+| 5.14b | `5_14b_nullref/` | Null pointer dereferencing and out-of-domain pointers |
 | 5.15 | `5_15_addrescape/` | Address escaping of automatic variables |
+| 5.15a | `5_15a_addrescape/` | Address escaping of automatic variables |
+| 5.15b | `5_15b_addrescape/` | Address escaping of automatic variables |
 | 5.16 | `5_16_signconv/` | Converting tainted values between signed/unsigned |
 | 5.17 | `5_17_swtchdflt/` | Switch statements with incomplete enum coverage |
 | 5.22 | `5_22_invptr/` | Using out-of-bounds pointers or array subscripts |
@@ -135,6 +139,8 @@ All vulnerability patches target `xdp_synproxy_kern.c`, an XDP-based SYN proxy i
 | 5.33 | `5_33_restrict/` | Pointers into the same object with restrict qualifier (variant 1) |
 | 5.33 | `5_33_restrict_2/` | Pointers into the same object with restrict qualifier (variant 2) |
 | 5.35 | `5_35_uninit_mem/` | Referencing uninitialized memory |
+| 5.35a | `5_35a_uninit_mem/` | Referencing uninitialized memory |
+| 5.35b | `5_35b_uninit_mem/` | Referencing uninitialized memory |
 | 5.36 | `5_36_ptrobj/` | Pointer comparison/subtraction from different objects |
 | 5.39 | `5_39_taintnoproto/` | Using tainted values as function pointers without prototypes |
 | 5.45 | `5_45_invfmtstr/` | Invalid format strings |
