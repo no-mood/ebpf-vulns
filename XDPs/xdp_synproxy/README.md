@@ -195,6 +195,8 @@ Dereferencing pointers derived from potentially tainted input (e.g., packet head
 - The function attempts to `__builtin_memcpy` from `copy_from` into `input_string`.
 - If `hdr->ipv4` is `NULL`, this dereference results in an invalid memory access, highlighting the risk of dereferencing unvalidated or tainted pointers in packet parsing logic.
 
+**Warnings:** No extra.
+
 **Verifier:** Passed (invalid dereference not detected by static analysis).
 
 **Exploitable:** If an attacker can craft a packet that omits or corrupts the IPv4 header, `hdr->ipv4` may resolve to `NULL` or an invalid pointer. In such a case, the dereference of `hdr->ipv4->saddr` would trigger an invalid memory access, which in eBPF could lead to verifier bypasses being overlooked in other contexts, or in non-BPF C code could cause kernel crashes or privilege escalation through controlled faulting behavior.
@@ -211,6 +213,8 @@ Dereferencing pointers that are only conditionally valid (e.g., depending on whe
 - A stack buffer `sink` of size `sizeof(struct in6_addr)` is allocated.
 - The function attempts to `__builtin_memcpy` from `copy_from` into `sink`.
 - If the packet being processed is IPv4, then `hdr->ipv6` is `NULL`, and the dereference of `hdr->ipv6->daddr` results in an invalid access.
+
+**Warnings:** No extra.
 
 **Verifier:** Passed (no rejection by the BPF verifier). The verifier tracks packet parsing paths but does not detect that `hdr->ipv6` may be `NULL` here.
 
@@ -234,12 +238,9 @@ Dereferencing pointers returned by helper functions such as `bpf_map_lookup_elem
 
 **Observed Behavior:** The program compiles cleanly, passes verification, and loads without warnings. During runtime testing, the debug prints are visible, but sometimes the program resets connections (e.g., connection resets observed when connecting via `nc` to a netcat server behind the synproxy). This suggests that the unchecked dereference may cause intermittent failures or program termination during packet processing.
 
-**Exploitable:**  
-- In eBPF: While the safety model typically prevents persistent kernel memory corruption, unchecked dereferencing of `NULL` can still terminate the BPF program or cause subtle disruptions (e.g., dropped packets, unexpected resets). This can be leveraged as a DoS, where crafted traffic triggers repeated invalid map lookups, forcing the BPF program to reset connections or abort processing.  
+**Exploitable:**  In eBPF: While the safety model typically prevents persistent kernel memory corruption, unchecked dereferencing of `NULL` can still terminate the BPF program or cause subtle disruptions (e.g., dropped packets, unexpected resets). This can be leveraged as a DoS, where crafted traffic triggers repeated invalid map lookups, forcing the BPF program to reset connections or abort processing.  
 
 *Signed-by: Giorgio Fardo*
-
-
 
 ### [5.15 addrescape]: Escaping the address of an automatic object
 
@@ -252,12 +253,13 @@ Automatic (stack-allocated) variables exist only for the lifetime of the functio
 - A call to `bpf_printk("Res: %s", ptr)` prints garbage or nothing, as the pointer references invalid memory.
 - Demonstrates how escaping stack addresses can result in use-after-scope bugs and potential memory corruption.
 
+**Warnings:** No extra.
+
 **Verifier:** Passed (stack lifetime violations are not detected).
 
 **Exploitable:** Not really — while this results in a dangling pointer, in eBPF the stack frame is strictly managed and reallocated per packet. The pointer cannot outlive the helper call context, so an attacker cannot reliably control or reuse the memory for malicious purposes beyond producing garbage logs.
-*Signed-by: Giorgio Fardo*
 
-**Extra warnings**: 
+*Signed-by: Giorgio Fardo*
 
 ### [5.15a addrescape]: Escaping the address of an automatic object
 
@@ -274,12 +276,12 @@ Automatic (stack-allocated) variables exist only for the lifetime of the functio
 **Verifier:** Passed (stack lifetime violations are not detected).
 
 **Warnings:**  
-
+```
 xdp_synproxy_kern.c:761:9: warning: address of stack memory associated with local variable 'array' returned [-Wreturn-stack-address]
 761 | return array; // diagnostic required
 | ^~~~~
 6 warnings generated.
-
+```
 
 **Exploitable:** Not really — while this results in a dangling pointer, in eBPF the stack frame is strictly managed and reallocated per packet. The pointer cannot outlive the helper call context, so an attacker cannot reliably control or reuse the memory for malicious purposes beyond producing garbage logs.
 
@@ -299,7 +301,7 @@ Automatic (stack-allocated) variables exist only for the lifetime of the functio
 
 **Verifier:** Passed (stack lifetime violations are not detected).
 
-**Warnings:** None (compiled, loaded, and verified successfully).
+**Warnings:** No extra.
 
 **Exploitable:** Not really — as with the first case, although this creates a dangling pointer, in eBPF the stack frame is strictly managed and reset per packet. The pointer cannot persist across contexts, so attackers cannot exploit it beyond producing garbage or misleading logs.
 
@@ -492,6 +494,8 @@ Using uninitialized memory results in undefined behavior. It can expose garbage 
 - The copied content (`buf`) is printed byte-by-byte with `bpf_printk()`, demonstrating random or garbage values.
 - This shows how lack of initialization can lead to unpredictable outcomes and violate memory safety.
 
+**Warnings:** No extra.
+
 **Verifier:** Passed.
 
 **Exploitable:** If the stack slot is not zeroed, uninitialized reads may leak kernel stack data to user space via `bpf_printk`, providing attackers with information disclosure. If zero-initialization happens at runtime, it reduces to benign behavior, but where disclosure occurs, it could aid in bypassing ASLR or building further attacks.
@@ -499,17 +503,13 @@ Using uninitialized memory results in undefined behavior. It can expose garbage 
 *Signed-by: Giorgio Fardo*
 
 ### [5.35a unintref]: Referencing uninitialized automatic variable
-Using an uninitialized automatic (stack) variable leads to undefined behavior. The value of such a variable is indeterminate until explicitly assigned, and reading it may yield garbage, stale stack data, or trigger compiler-dependent optimizations that alter program flow.  
+Using an uninitialized automatic (stack) variable leads to undefined behavior. The value of such a variable is indeterminate until explicitly assigned, and reading it may yield garbage, stale stack data, or trigger compiler-dependent optimizations that alter program flow.
 
 **Implementation Details:**
 - The function `uninitialized_auto_var_read()` declares an integer `int uninit_int;` without initializing it.
 - It immediately checks `if (uninit_int == 0)` and logs via `bpf_printk()` whether the "uninitialized value" appeared as zero or not.
 - Because `uninit_int` is not given a defined value, its contents come directly from the kernel stack, making the comparison unpredictable.
 - The call to `uninitialized_auto_var_read()` was inserted in `syncookie_part1()`, ensuring that the function is exercised whenever this path is triggered.
-
-**Verifier:** Passed.
-
-**Exploitable:** This pattern risks leaking kernel stack data to user space via `bpf_printk()`, depending on how the verifier and runtime handle uninitialized stack slots. In contexts where stack slots are not cleared, this can expose sensitive information, potentially aiding exploitation strategies such as ASLR bypass or kernel memory disclosure. If the compiler or runtime zero-initializes the stack, the behavior reduces to a benign but misleading test case.
 
 **Warnings:**
 ```
@@ -523,22 +523,26 @@ xdp_synproxy_kern.c:760:19: note: initialize the variable 'uninit_int' to silenc
 
 ```
 
+**Verifier:** Passed.
+
+**Exploitable:** This pattern risks leaking kernel stack data to user space via `bpf_printk()`, depending on how the verifier and runtime handle uninitialized stack slots. In contexts where stack slots are not cleared, this can expose sensitive information, potentially aiding exploitation strategies such as ASLR bypass or kernel memory disclosure. If the compiler or runtime zero-initializes the stack, the behavior reduces to a benign but misleading test case.
+
 *Signed-by: Giorgio Fardo*
 
 ### [5.35b uninitmem]: Expanding and accessing uninitialized packet memory
 This test demonstrates how dynamically adjusting packet size can expose uninitialized memory regions to BPF programs. Reading from these regions introduces undefined behavior and risks leaking kernel data.
 
-**Implementation Details:**  
+**Implementation Details:**
 - The helper `uninitialized_packet_read()` attempts to grow the packet buffer using `bpf_xdp_adjust_tail(ctx, add_len)`.
-- If successful, a new tail region is exposed but not initialized by the kernel.  
+- If successful, a new tail region is exposed but not initialized by the kernel.
 - The function then iterates over this extended area, reading each byte and logging its content with `bpf_printk()`.
-- This simulates a scenario where uninitialized packet data could be observed, potentially leaking sensitive information or introducing nondeterministic behavior.  
+- This simulates a scenario where uninitialized packet data could be observed, potentially leaking sensitive information or introducing nondeterministic behavior. 
+
+**Warnings:** No extra.
 
 **Verifier:** Failed with `"R1 invalid mem access 'scalar'"`.
 
 **Exploitable:** Not exploitable in this state.
-
-**Warnings:** No extra warning.
 
 *Signed-off: Giorgio Fardo*
 
