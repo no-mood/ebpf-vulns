@@ -376,6 +376,8 @@ String literals in C are stored in read-only memory. Attempting to modify them r
 - This operation is undefined behavior: string literals must not be written to.
 - Despite the violation, the verifier allows the code to pass since it does not track mutability of string literal memory.
 
+**Warnings:** No extra.
+
 **Verifier:** Passed (modification of string literals not checked).
 
 **Exploitable:** Not really — attempts to modify read-only memory holding literals will do nothing in this case. In eBPF, this results in program terminatio rather than memory corruption, so it cannot be weaponized by an attacker.
