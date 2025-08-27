@@ -161,9 +161,9 @@ The following ISO-IEC TS 17961-2013 rules are **not applicable** to XDP/eBPF env
 | Rule | Title | Category | Reason |
 |------|-------|----------|---------|
 | **5.2** | Accessing freed memory | Memory Management | No `free()` function or dynamic memory allocation |
-| **5.3** | Accessing shared objects in signal handlers | Signal Handling | No signal handling mechanism in eBPF programs |
-| **5.5** | Calling functions from signal handlers except abort, _Exit, signal | Signal Handling | No signal handling mechanism in eBPF programs |
-| **5.7** | Calling signal from interruptible signal handlers | Signal Handling | No signal handling mechanism in eBPF programs |
+| **5.3** | Accessing shared objects in signal handlers | Signal Handling | BPF helper `bpf_send_signal()` is present but cannot be used to implement this vulnerability as it sends the signal to the user space and woruld not create the race condition related to  the `err_msg` pointer as described in the PDF. |
+| **5.5** | Calling functions from signal handlers except abort, _Exit, signal | Signal Handling | `bpf_send_signal()` cannot take custom handler as an argument. |
+| **5.7** | Calling signal from interruptible signal handlers | Signal Handling | No custom signal handler possible |
 | **5.8** | Calling system | Library Functions | No `system()` function available |
 | **5.12** | Copying a FILE object | File Operations | No file structures or FILE type available |
 | **5.18** | Failing to close files or free memory | Memory Management | No `malloc()` or file close operations available |
@@ -176,7 +176,7 @@ The following ISO-IEC TS 17961-2013 rules are **not applicable** to XDP/eBPF env
 | **5.29** | Modifying getenv/localeconv/etc. return values | Library Functions | No `getenv()` or `setlocale()` functions |
 | **5.32** | Invalid chars to character-handling functions | Library Functions | Limited `ctype.h` support (questionable availability) |
 | **5.34** | Re/freeing non-dynamically allocated memory | Memory Management | No dynamic memory allocation or `free()` operations |
-| **5.37** | Tainted strings are passed to a string copying function | Format String | Limited string manipulation functions in eBPF context |
+| **5.37** | Tainted strings are passed to a string copying function | Format String | No `strcpy()` |
 | **5.38** | Taking size of pointer to get pointed-to size | Discarded | Not useful for eBPF vulnerability testing scenarios |
 | **5.40** | Tainted value used in formatted I/O | Format String | Limited formatted I/O capabilities |
 | **5.41** | Invalid value for fsetpos | File Operations | No file operations available |
