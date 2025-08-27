@@ -255,6 +255,19 @@ Calling functions with arguments of incompatible types leads to undefined behavi
 
 **Verifier:** Passed (function call succeeds but with potential data truncation/extension issues).
 
+#### Example e: BPF helper function with incompatible argument types
+
+Calling BPF helper functions with incompatible argument types is especially dangerous as these functions execute in kernel space with elevated privileges.
+
+**Implementation Details:**
+- `bpf_map_lookup_elem()` expects `(void *map, const void *key)` with a valid map pointer.
+- We pass an integer `0xDEADBEEF` casted to `void*` as the map argument instead of a real map pointer.
+- This violates the BPF helper function contract and can crash the kernel if not caught by the verifier.
+- Demonstrates UB 41: "A function is defined with a type that is not compatible with the type pointed to by the expression that denotes the called function."
+- More dangerous than regular function calls because BPF helpers operate in kernel space where invalid pointers can cause immediate kernel panic.
+
+**Verifier:** Failed (should reject program with invalid map pointer).
+
 *Signed-by: Giovanni Nicosia*
 
 ### [5.9 padcomp]: Comparison of padding data
@@ -280,13 +293,36 @@ If two instances of an identical-looking struct have their data fields set to th
 
 Converting pointers to integers and back can lead to undefined behavior if the resulting pointer is incorrectly aligned, doesn't point to an entity of the referenced type, or creates invalid memory references. This is particularly dangerous in eBPF where pointer arithmetic is strictly controlled by the verifier.
 
-**Implementation Details:**
-- The patch demonstrates a "memory laundering" attack where a 64-bit packet data pointer is truncated to 32-bit (`data_base_truncated = (__u32)(unsigned long)data`), losing the upper 32 bits on 64-bit systems.
-- The truncated value is then used in scalar arithmetic (`reconstructed_addr += payload_offset`) which the verifier allows since it sees pure scalar operations.
-- Finally, the manipulated scalar is converted back to a pointer (`calculated_ptr = (void *)reconstructed_addr`), potentially creating an out-of-bounds pointer that bypasses verifier bounds checking.
-- The attack succeeds because the verifier loses track of pointer provenance when the conversion is broken into discrete steps, allowing unsafe memory access that should be blocked.
+#### Example a: Naive pointer truncation approach (blocked by verifier)
 
-**Verifier:** Passed (bypasses bounds checking through pointer provenance loss).
+**Implementation Details:**
+- Demonstrates the straightforward but naive approach to pointer-to-integer conversion and arithmetic.
+- Attempts direct conversion: `calculated_ptr = (void *)(unsigned long)(data_base_truncated + payload_offset)`.
+- The verifier blocks this because: (1) it tracks `data_base_truncated` as "derived from pointer", (2) arithmetic is still considered "pointer arithmetic", (3) conversion requires bitwise operations prohibited on pointers.
+- Shows why the naive approach fails and demonstrates the verifier's protective mechanisms.
+
+**Verifier:** Failed (correctly blocks unsafe pointer arithmetic).
+
+#### Example a_exploit: Information disclosure via advanced pointer truncation analysis
+
+**Implementation Details:**
+- Comprehensive exploit research demonstrating real information disclosure through pointer truncation.
+- Includes detailed analysis of verifier bypass mechanisms and memory layout confusion.
+- Shows how reconstructed pointers can access unauthorized kernel memory or other packet data.
+- Features extensive logging and diagnostic output to demonstrate the attack process step-by-step.
+- Proves that bounds check bypass can lead to actual information leakage from unintended memory regions.
+
+**Verifier:** Passed (successful information disclosure exploit through verifier bypass).
+
+#### Example b: Hardcoded integer to pointer conversion
+
+**Implementation Details:**
+- Direct conversion of hardcoded integer `0xDEADBEEF` to pointer (`magic_ptr = (void *)MAGIC_ADDR`).
+- Implements EXAMPLE 2 from ISO-IEC TS 17961-2013 standard.
+- Demonstrates arbitrary address access where hardcoded addresses may point to sensitive memory regions.
+- Attempts bounds-checked memory access with the invalid pointer.
+
+**Verifier:** Failed (rejects program due to invalid pointer usage).
 
 *Signed-by: Giovanni Nicosia*
 
