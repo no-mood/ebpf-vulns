@@ -45,7 +45,9 @@ All vulnerability patches target `xdp_synproxy_kern.c`, an XDP-based SYN proxy i
 | 5.35 | `5_35_uninit_mem/` | Referencing uninitialized memory | Giorgio Fardo |
 | 5.35a | `5_35a_uninit_mem/` | Referencing uninitialized memory | Giorgio Fardo |
 | 5.35b | `5_35b_uninit_mem/` | Referencing uninitialized memory | Giorgio Fardo |
-| 5.36 | `5_36_ptrobj/` | Subtracting or comparing pointers from different array objects | Giovanni Nicosia |
+| 5.36a | `5_36a_ptrobj/` | Subtracting or comparing pointers from different array objects - Local Buffer Case | Giovanni Nicosia |
+| 5.36b | `5_36b_ptrobj/` | Subtracting or comparing pointers from different array objects - Context Pointers Case | Giovanni Nicosia |
+| 5.36c | `5_36c_ptrobj/` | Subtracting or comparing pointers from different array objects - Map Pointers Case | Giovanni Nicosia |
 | 5.39 | `5_39_taintnoproto/` | Using tainted values as function pointers without prototypes | Giorgio Fardo |
 | 5.40 | `5_40_taintformatio` | Tainted value used in formatted I/O | Giorgio Fardo |
 | 5.45 | `5_45_invfmtstr/` | Invalid format strings in formatted I/O functions | Giovanni Nicosia |
@@ -86,18 +88,9 @@ The following ISO-IEC TS 17961-2013 rules are **not applicable** to XDP/eBPF env
 | **5.41** | Invalid value for fsetpos | File Operations | No file operations available |
 | **5.42** | Using object overwritten by getenv/localeconv/etc. | Library Functions | No libc environment functions |
 | **5.43** | Char values indistinguishable from EOF | File Operations | No file operations or EOF handling |
-| **5.44** | Using reserved identifiers | Discarded | Not relevant for security testing focus*** |
+| **5.44** | Using reserved identifiers | Discarded | Not relevant for security testing focus |
 
 **Note**: Rules 5.25, 5.38, and 5.44 are technically applicable to XDP/eBPF but were intentionally discarded as not useful for practical vulnerability testing.
-
-**Rule 5.25**
-Rule 5.25 addresses the correct use of errno when interacting with Standard C Library functions. In the XDP/eBPF context, this rule is not relevant for security testing because eBPF programs do not link against the C standard library and do not rely on errno for error signaling. Instead, BPF helpers communicate errors via explicit return values. Misuse of errno cannot occur in this environment and therefore does not introduce security risks. For the security of eBPF/XDP code, this rule can be considered not applicable.
-
-**Rule 5.38**
-While this rule is useful for preventing functional bugs in standard C code, it is not relevant for eBPF/XDP vulnerability testing. eBPF programs array bounds must be explicitly tracked, and pointer size misuse does not introduce exploitable security vulnerabilities. At worst, such code leads to logical errors rather than security issues. Therefore, this rule can be considered not useful in a security review.
-
-**Rule 5.44** is about avoiding the use of reserved identifiers (like errno, or identifiers starting with _ followed by uppercase) to ensure portability and prevent undefined behavior in standard C environments.
-In the context of XDP/eBPF, this rule has little relevance for security testing because eBPF programs operate in a restricted environment without the C standard library, and reserved identifier clashes cannot lead to security vulnerabilities. At worst, such violations cause compilation issues, not exploitable conditions.
 
 These exclusions reflect the constrained execution environment of eBPF programs, which operate in kernel space with:
 - No dynamic memory allocation
@@ -376,6 +369,7 @@ Dereferencing pointers returned by helper functions such as `bpf_map_lookup_elem
 - The function attempts to `__builtin_memcpy` from `value` into `buf` without verifying whether `value` is valid.
 - If `bpf_map_lookup_elem()` returns `NULL` (no element present), this results in an invalid dereference.
 
+
 **Verifier:** Not passed : 
 ```
 ; __builtin_memcpy(buf, value, sizeof(__u64));
@@ -385,6 +379,13 @@ processed 122 insns (limit 1000000) max_states_per_insn 0 total_states 9 peak_st
 -- END PROG LOAD LOG --
 ```
 **Observed Behavior:** No passed verifier due to probable null value in map.
+=======
+**Verifier:** Passed. The BPF verifier does not enforce `NULL` checks for map lookups; it assumes that programs handle failures correctly. As a result, the invalid dereference is not detected at load time.
+
+**Observed Behavior:** The program compiles cleanly, passes verification, and loads without warnings. During runtime testing, the debug prints are visible, but sometimes the program resets connections (e.g., connection resets observed when connecting via `nc` to a netcat server behind the synproxy). This suggests that the unchecked dereference may cause intermittent failures or program termination during packet processing.
+
+**Exploitable:**  In eBPF: While the safety model typically prevents persistent kernel memory corruption, unchecked dereferencing of `NULL` can still terminate the BPF program or cause subtle disruptions (e.g., dropped packets, unexpected resets). This can be leveraged as a DoS, where crafted traffic triggers repeated invalid map lookups, forcing the BPF program to reset connections or abort processing.
+
 
 **Exploitable:** Not exploitable.
 *Signed-by: Giorgio Fardo*
