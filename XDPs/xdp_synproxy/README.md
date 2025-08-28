@@ -30,6 +30,10 @@ All vulnerability patches target `xdp_synproxy_kern.c`, an XDP-based SYN proxy i
 | 5.17 | `5_17_swtchdflt/` | Switch statement missing default case or incomplete enumeration coverage | Giovanni Nicosia |
 | 5.22 | `5_22_invptr/` | Using out-of-bounds pointers or array subscripts | Gianfranco Trad |
 | 5.26 | `5_26_diverr/` | Integer division errors | Francesco Rollo |
+| 5.26 | `5_26_diverr_2/` | Integer division errors | Francesco Rollo |
+| 5.26 | `5_26_diverr_3/` | Integer division errors | Francesco Rollo |
+| 5.26 | `5_26_diverr_4/` | Integer division errors | Francesco Rollo |
+| 5.26 | `5_26_diverr_5/` | Integer division errors | Francesco Rollo |
 | 5.28 | `5_28_strmod/` | Modifying string literals | Giorgio Fardo |
 | 5.30 | `5_30_intoflow/` | Overflowing signed integers | Giorgio Fardo |
 | 5.31 | `5_31_nonnullcs/` | Non-null-terminated character sequences | Francesco Rollo |
@@ -440,6 +444,7 @@ In standard C, division by zero and modulo by zero result in **undefined behavio
 
 The eBPF verifier is extremely **strict** about preventing undefined behavior and ensuring program safety. It performs static analysis to determine the possible range of values for any register that might be used as a divisor.
 
+#### Example 1-2-3
 **Implementation Details:**
 - The value of `hdr->tcp->ack_seq` is extracted from the incoming TCP header and assigned to `tainted_divisor_val`. `ack_seq` is chosen because, in a TCP header, it can legitimately carry a value of zero, making it a suitable "tainted" variable that could cause a division-by-zero.
 - A constant `numerator_val` is defined as `100`.
@@ -449,7 +454,50 @@ Why this approach? If the verifier statically determines that a divisor *could* 
 
 ***Unfortunately the eBPF runtime environment defines specific behavior for division/modulo by zero by setting the destination register to zero.***
 
+**NB**: The same example is split across two different test files (example 2 and 3) reproducing the same operations in two different files for completeness.  
+
 **Verifier:** Passed (but not an issue at runtime).
+
+**Explotable:** Not possible.
+
+#### Example 4
+
+**Implementation Details:**
+
+- UB Case: Division result not representable in two’s complement arithmetic.
+  Specifically: `INT_MIN / -1 (0x80000000 / -1)` overflows because `-INT_MIN`
+  cannot be represented in a 32-bit signed integer.
+
+- Implementation:
+  - `tainted_dividend` is set arbitrarily to **INT_MIN** (0x80000000).
+  - `divisor_neg_one` is set to -1.
+  - Division is performed: `result_overflow = tainted_dividend / divisor_neg_one`.
+  - `bpf_printk` prints the dividend, divisor, and result to force evaluation.
+
+Standard C does not define the behavior for `INT_MIN / -1`. The result is theoretically non-representable, but memory safety is not violated.
+
+**Verifier:** Passed.
+
+**Exploitable**: Not possible. The eBPF runtime returns 0 in practice, and the operation cannot be leveraged for arbitrary memory access.
+
+#### Example 5
+
+**Implementation Details:**
+
+- UB Case: Modulo result not representable in two’s complement arithmetic.
+  Specifically: `INT_MIN % -1 (0x80000000 % -1)` is undefined in standard C.
+
+- Implementation:
+  - `tainted_dividend` is set arbitrarily to **INT_MIN** (0x80000000).
+  - `divisor_neg_one` is set to -1.
+  - Modulo operation is performed: `result_overflow = tainted_dividend % divisor_neg_one`.
+  - `bpf_printk` prints the dividend, divisor, and result to force evaluation.
+
+In C, the modulo requires the result to fit within the signed integer range. For `INT_MIN % -1`, the standard does not define a value.
+
+**Verifier:** Passed
+
+**Exploitabile**: Not possible. The eBPF runtime produces 0 as the result, so this cannot be used to read or write memory.
 
 *Signed-by: Francesco Rollo*
 
