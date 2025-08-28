@@ -1,6 +1,93 @@
-## Patches Report
+# XDP SynProxy Vulnerability Testing - ISO-IEC TS 17961-2013
 
-All the patches described below refer to C secure coding rules contained in the PD ISO/IEC TS 17961:2013 document, and can be found under `patches/` folder.
+This directory contains vulnerability patches that implement various ISO-IEC TS 17961-2013 secure coding rule violations within the XDP SynProxy implementation.
+
+## Vulnerability Patches
+
+Progress tracker and recap: https://docs.google.com/spreadsheets/d/17zbtS0Jd2qmZblBeo4BnHuop_OvKTKCIsaw-80wdXXQ/edit?usp=sharing
+
+All vulnerability patches target `xdp_synproxy_kern.c`, an XDP-based SYN proxy implementation taken from the Linux kernel selftests. The `patches/` directory contains vulnerability patches for each applicable rule from ISO-IEC TS 17961-2013:
+
+| Rule | Directory | Vulnerability Type |
+|------|-----------|-------------------|
+| 5.1 | `5_1_ptrcomp/` | Accessing an object through a pointer to an incompatible type |
+| 5.4 | `5_4_boolasgn/` | Assignment in conditional expressions |
+| 5.6a | `5_06a_argcomp/` | Function pointer type incompatibility |
+| 5.6b | `5_06b_argcomp/` | Wrong number of arguments |
+| 5.6c | `5_06c_argcomp/` | Variadic function without prototype |
+| 5.6d | `5_06d_argcomp/` | Wrong argument types |
+| 5.6e | `5_06e_argcomp/` | BPF helper function with incompatible argument types |
+| 5.9 | `5_9_padcomp/` | Comparison of padding data |
+| 5.10a | `5_10a_intptrconv/` | Naive pointer truncation (blocked by verifier) |
+| 5.10a_exploit | `5_10a_exploit_intptrconv/` | Information disclosure via pointer truncation bypass |
+| 5.10b | `5_10b_intptrconv/` | Hardcoded integer to pointer conversion |
+| 5.11 | `5_11_alignconv/` | Converting pointer values to more strictly aligned pointer types |
+| 5.13 | `5_13_objdec/` | Declaring function or object in incompatible ways |
+| 5.14 | `5_14_nullref/` | Dereferencing a possibly null or invalid pointer |
+| 5.15 | `5_15_addrescape/` | Escaping the address of an automatic object |
+| 5.16a | `5_16a_signconv/` | Raw version (Direct TCP payload access) |
+| 5.16b | `5_16b_signconv/` | Verifier-passing version (Controlled demonstration) |
+| 5.17 | `5_17_swtchdflt/` | Switch statement missing default case or incomplete enumeration coverage |
+| 5.22 | `5_22_invptr/` | Using out-of-bounds pointers or array subscripts |
+| 5.26 | `5_26_diverr/` | Integer division errors |
+| 5.28 | `5_28_strmod/` | Modifying string literals |
+| 5.30 | `5_30_intoflow/` | Overflowing signed integers |
+| 5.31 | `5_31_nonnullcs/` | Non-null-terminated character sequences |
+| 5.33 | `5_33_restrict/` | Passing pointers into the same object as arguments to different restrict-qualified parameters |
+| 5.35 | `5_35_uninit_mem/` | Referencing uninitialized memory |
+| 5.36 | `5_36_ptrobj/` | Subtracting or comparing pointers from different array objects |
+| 5.39 | `5_39_taintnoproto/` | Using tainted values as function pointers without prototypes |
+| 5.45 | `5_45_invfmtstr/` | Invalid format strings in formatted I/O functions |
+| 5.46_1 | `5_46_taintsink_1/` | Array indexing with tainted value |
+| 5.46_2 | `5_46_taintsink_2/` | Memory copy with tainted length |
+| 5.46_3 | `5_46_taintsink_3/` | Variable Length Arrays with tainted size |
+
+Each vulnerability rule is implemented as a Git commit patch that modifies the base `xdp_synproxy_kern.c` file. These patches can be:
+- **Applied manually**: Use `git apply` or `git am` to apply individual patches for manual testing
+- **Applied automatically**: Use the XVTLAS tool which handles patch application, compilation, verification, and output export
+
+The patches are designed to demonstrate specific ISO-IEC TS 17961-2013 rule violations while maintaining the core SYN proxy functionality.
+
+## Rules Not Applicable to XDP/eBPF
+
+The following ISO-IEC TS 17961-2013 rules are **not applicable** to XDP/eBPF environments due to fundamental limitations and architectural differences:
+
+| Rule | Title | Category | Reason |
+|------|-------|----------|---------|
+| **5.2** | Accessing freed memory | Memory Management | No `free()` function or dynamic memory allocation |
+| **5.3** | Accessing shared objects in signal handlers | Signal Handling | BPF helper `bpf_send_signal()` is present but cannot be used to implement this vulnerability as it sends the signal to the user space and woruld not create the race condition related to  the `err_msg` pointer as described in the PDF. |
+| **5.5** | Calling functions from signal handlers except abort, _Exit, signal | Signal Handling | `bpf_send_signal()` cannot take custom handler as an argument. |
+| **5.7** | Calling signal from interruptible signal handlers | Signal Handling | No custom signal handler possible |
+| **5.8** | Calling system | Library Functions | No `system()` function available |
+| **5.12** | Copying a FILE object | File Operations | No file structures or FILE type available |
+| **5.18** | Failing to close files or free memory | Memory Management | No `malloc()` or file close operations available |
+| **5.19** | Failing to detect and handle stdlib errors | Library Functions | Limited standard library support |
+| **5.20** | Forming invalid pointers by library function | Library Functions | No libc functions available |
+| **5.21** | Allocating insufficient memory | Memory Management | No dynamic memory allocation (`malloc`) in eBPF |
+| **5.23** | Freeing memory multiple times | Memory Management | No `free()` function available |
+| **5.25** | Incorrect use of errno | Discarded | Not particularly relevant to eBPF testing |
+| **5.27** | Interleaving stream I/O without flush or positioning | File Operations | No buffered stdio operations |
+| **5.29** | Modifying getenv/localeconv/etc. return values | Library Functions | No `getenv()` or `setlocale()` functions |
+| **5.32** | Invalid chars to character-handling functions | Library Functions | Limited `ctype.h` support (questionable availability) |
+| **5.34** | Re/freeing non-dynamically allocated memory | Memory Management | No dynamic memory allocation or `free()` operations |
+| **5.37** | Tainted strings are passed to a string copying function | Format String | No `strcpy()` |
+| **5.38** | Taking size of pointer to get pointed-to size | Discarded | Not useful for eBPF vulnerability testing scenarios |
+| **5.40** | Tainted value used in formatted I/O | Format String | Limited formatted I/O capabilities |
+| **5.41** | Invalid value for fsetpos | File Operations | No file operations available |
+| **5.42** | Using object overwritten by getenv/localeconv/etc. | Library Functions | No libc environment functions |
+| **5.43** | Char values indistinguishable from EOF | File Operations | No file operations or EOF handling |
+| **5.44** | Using reserved identifiers | Discarded | Not relevant for security testing focus |
+
+**Note**: Rules 5.25, 5.38, and 5.44 are technically applicable to XDP/eBPF but were intentionally discarded as not useful for practical vulnerability testing.
+
+These exclusions reflect the constrained execution environment of eBPF programs, which operate in kernel space with:
+- No dynamic memory allocation
+- No signal handling
+- Limited standard library access
+- No file system operations
+- Restricted system call access
+
+## Patches Report
 
 ## Base warnings
 
@@ -43,7 +130,7 @@ The eBPF verifier, through its static analysis of register states and control fl
 
 **Verifier:** Not passed (infinite loop detected).
 
-**Extra warnings**: 
+**Extra warnings**:
 
 ```
 xdp_synproxy_kern.c:631:27: warning: using the result of an assignment as a condition without parentheses [-Wparentheses]
@@ -51,7 +138,7 @@ xdp_synproxy_kern.c:631:27: warning: using the result of an assignment as a cond
       |                ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~
 xdp_synproxy_kern.c:631:27: note: place parentheses around the assignment to silence this warning
   631 |         while (processed_len = current_tcp_len) {
-      |                              ^                
+      |                              ^
       |                (                              )
 xdp_synproxy_kern.c:631:27: note: use '==' to turn this assignment into an equality comparison
   631 |         while (processed_len = current_tcp_len) {
@@ -64,7 +151,7 @@ xdp_synproxy_kern.c:631:27: note: use '==' to turn this assignment into an equal
 #### Example 2
 
 **Implementation Details:**
-- This version introduces a `do ... while` loop with a direct assignment in its conditional:  
+- This version introduces a `do ... while` loop with a direct assignment in its conditional:
   `do { ... } while (processed_len = current_tcp_len);`.
 - Unlike the `while` version, the `do ... while` construct guarantees that the loop body will execute **at least once**, even if `hdr->tcp_len` (`current_tcp_len`) is zero.
 - Since `hdr->tcp_len` represents the TCP header length, it is normally non-zero (minimum 20 bytes). This means the condition `(processed_len = current_tcp_len)` always evaluates to true.
@@ -73,7 +160,7 @@ The eBPF verifier, through its static analysis of register states and control fl
 
 **Verifier:** Not passed (infinite loop detected).
 
-**Extra warnings**: 
+**Extra warnings**:
 
 ```
 xdp_synproxy_kern.c:626:25: warning: using the result of an assignment as a condition without parentheses [-Wparentheses]
@@ -81,7 +168,7 @@ xdp_synproxy_kern.c:626:25: warning: using the result of an assignment as a cond
       |                  ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~
 xdp_synproxy_kern.c:626:25: note: place parentheses around the assignment to silence this warning
   626 |         } while (processed_len = current_tcp_len);
-      |                                ^                
+      |                                ^
       |                  (                              )
 xdp_synproxy_kern.c:626:25: note: use '==' to turn this assignment into an equality comparison
   626 |         } while (processed_len = current_tcp_len);
@@ -238,7 +325,7 @@ Dereferencing pointers returned by helper functions such as `bpf_map_lookup_elem
 
 **Observed Behavior:** The program compiles cleanly, passes verification, and loads without warnings. During runtime testing, the debug prints are visible, but sometimes the program resets connections (e.g., connection resets observed when connecting via `nc` to a netcat server behind the synproxy). This suggests that the unchecked dereference may cause intermittent failures or program termination during packet processing.
 
-**Exploitable:**  In eBPF: While the safety model typically prevents persistent kernel memory corruption, unchecked dereferencing of `NULL` can still terminate the BPF program or cause subtle disruptions (e.g., dropped packets, unexpected resets). This can be leveraged as a DoS, where crafted traffic triggers repeated invalid map lookups, forcing the BPF program to reset connections or abort processing.  
+**Exploitable:**  In eBPF: While the safety model typically prevents persistent kernel memory corruption, unchecked dereferencing of `NULL` can still terminate the BPF program or cause subtle disruptions (e.g., dropped packets, unexpected resets). This can be leveraged as a DoS, where crafted traffic triggers repeated invalid map lookups, forcing the BPF program to reset connections or abort processing.
 
 *Signed-by: Giorgio Fardo*
 
@@ -275,7 +362,7 @@ Automatic (stack-allocated) variables exist only for the lifetime of the functio
 
 **Verifier:** Passed (stack lifetime violations are not detected).
 
-**Warnings:**  
+**Warnings:**
 ```
 xdp_synproxy_kern.c:761:9: warning: address of stack memory associated with local variable 'array' returned [-Wreturn-stack-address]
 761 | return array; // diagnostic required
@@ -463,7 +550,7 @@ By targeting `hdr->tcp->seq`, a legitimate SYN packet, which should have led to 
 
 **Verifier**: Passed.
 
-**Exploitable**: Not in a security sense. Only causes **logic/data corruption** in local eBPF stack memory, since the memory is fully controlled by the program.  
+**Exploitable**: Not in a security sense. Only causes **logic/data corruption** in local eBPF stack memory, since the memory is fully controlled by the program.
 
 #### Example 2
 
@@ -481,7 +568,7 @@ By targeting `hdr->tcp->seq`, a legitimate SYN packet, which should have led to 
     leading to undefined behavior and possible corruption of the copied data.
 
 In the eBPF context only local stack memory is affected, so no arbitrary memory read/write occurs. The corruption is limited to the `tcp_options` buffer used for demonstration.
-  
+
 **Verifier:** Passed.
 
 **Exploitable:** Not in a security sense. It only causes local stack data corruption.
@@ -540,7 +627,7 @@ This test demonstrates how dynamically adjusting packet size can expose uninitia
 - The helper `uninitialized_packet_read()` attempts to grow the packet buffer using `bpf_xdp_adjust_tail(ctx, add_len)`.
 - If successful, a new tail region is exposed but not initialized by the kernel.
 - The function then iterates over this extended area, reading each byte and logging its content with `bpf_printk()`.
-- This simulates a scenario where uninitialized packet data could be observed, potentially leaking sensitive information or introducing nondeterministic behavior. 
+- This simulates a scenario where uninitialized packet data could be observed, potentially leaking sensitive information or introducing nondeterministic behavior.
 
 **Warnings:** No extra.
 
@@ -640,7 +727,7 @@ Under this specific condition, the verifier allows the eBPF program to load, eve
 
 **Verifier:** Passed.
 
-**Exploitable:** 
+**Exploitable:**
 - Memory safety exploitation (kernel R/W): No, not possible.
 - Logic exploitation (attacker-controlled packet alteration): Yes, possible.
 
@@ -648,7 +735,7 @@ Under this specific condition, the verifier allows the eBPF program to load, eve
 
 **Implementation Details**
 
-- Inside `syncookie_handle_syn`, a `__u32 tainted_vla_size` variable is declared and initialized with a value derived from `hdr->tcp->doff * 4`. 
+- Inside `syncookie_handle_syn`, a `__u32 tainted_vla_size` variable is declared and initialized with a value derived from `hdr->tcp->doff * 4`.
 - The line `char vla_buffer[tainted_vla_size]` attempts to declare a Variable Length Array `vla_buffer` using this runtime-determined size.
 - This program **will not pass verification**, regardless of the taintedness of `tainted_vla_size`. The eBPF verifier, as mentioned in the previous example, prohibits VLAs. The compilation succeeds, but the attempt to load such a BPF program into the kernel will result in a clear rejection message from the verifier.
 

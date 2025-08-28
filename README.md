@@ -86,10 +86,10 @@ cd XDPs/xdp_synproxy/
 ./start_session.sh
 ```
 
-To close the session and clean the env : 
+To close the session and clean the env :
 
 ```bash
-//From inside the tmux session : 
+//From inside the tmux session :
 ./kill_session.sh
 ```
 
@@ -104,94 +104,17 @@ Initially, we followed the Linux kernel selftests approach using a 3-veth (virtu
 
 ### 5. Vulnerability Patches
 
-Progress tracker and recap : https://docs.google.com/spreadsheets/d/17zbtS0Jd2qmZblBeo4BnHuop_OvKTKCIsaw-80wdXXQ/edit?usp=sharing
+All vulnerability patches and detailed documentation can be found in the [XDP SynProxy README](./XDPs/xdp_synproxy/README.md).
 
-All vulnerability patches target `xdp_synproxy_kern.c`, an XDP-based SYN proxy implementation taken from the Linux kernel selftests. The `XDPs/xdp_synproxy/patches/` directory contains vulnerability patches for each applicable rule from ISO-IEC TS 17961-2013:
+This section contains:
+- Complete patch directory listing with vulnerability types
+- Detailed implementation explanations for each rule
+- Verifier behavior analysis
+- Progress tracking and examples
 
-| Rule | Directory | Vulnerability Type |
-|------|-----------|-------------------|
-| 5.1 | `5_01_invalidptr/` | Creation of invalid pointers through out-of-bounds indexing |
-| 5.4 | `5_4_boolasgn/` | Assignment in conditional expressions (variant 1) |
-| 5.4 | `5_4_boolasgn_2/` | Assignment in conditional expressions (variant 2) |
-| 5.6a | `5_06a_argcomp/` | Calling functions with wrong number of arguments |
-| 5.6b | `5_06b_argcomp/` | Calling functions with wrong argument types |
-| 5.6c | `5_06c_argcomp/` | Calling functions with wrong argument structures |
-| 5.6d | `5_06d_argcomp/` | Calling functions with wrong argument arrays |
-| 5.9 | `5_9_padcomp/` | Comparison of padding data |
-| 5.10 | `5_10_intptrconv/` | Pointer-to-integer conversion issues |
-| 5.11 | `5_11_alignptr/` | Accessing memory through misaligned pointers |
-| 5.13 | `5_13_objdec/` | Accessing objects through incompatible effective types |
-| 5.14 | `5_14_nullref/` | Null pointer dereferencing and out-of-domain pointers |
-| 5.14a | `5_14a_nullref/` | Null pointer dereferencing and out-of-domain pointers |
-| 5.14b | `5_14b_nullref/` | Null pointer dereferencing and out-of-domain pointers |
-| 5.15 | `5_15_addrescape/` | Address escaping of automatic variables |
-| 5.15a | `5_15a_addrescape/` | Address escaping of automatic variables |
-| 5.15b | `5_15b_addrescape/` | Address escaping of automatic variables |
-| 5.16 | `5_16_signconv/` | Converting tainted values between signed/unsigned |
-| 5.17 | `5_17_swtchdflt/` | Switch statements with incomplete enum coverage |
-| 5.22 | `5_22_invptr/` | Using out-of-bounds pointers or array subscripts |
-| 5.24 | `5_24_usrfmt/` | Including tainted or out-of-domain input in format strings |
-| 5.26 | `5_26_diverr/` | Integer division errors |
-| 5.28 | `5_28_strmod/` | Modifying string literals |
-| 5.30 | `5_30_intoflow/` | Signed integer overflow |
-| 5.31 | `5_31_nonnullcs/` | Non-null-terminated character sequences (variant 1) |
-| 5.31 | `5_31_nonnullcs_2/` | Non-null-terminated character sequences (variant 2) |
-| 5.33 | `5_33_restrict/` | Pointers into the same object with restrict qualifier (variant 1) |
-| 5.33 | `5_33_restrict_2/` | Pointers into the same object with restrict qualifier (variant 2) |
-| 5.35 | `5_35_uninit_mem/` | Referencing uninitialized memory |
-| 5.35a | `5_35a_uninit_mem/` | Referencing uninitialized memory |
-| 5.35b | `5_35b_uninit_mem/` | Referencing uninitialized memory |
-| 5.36 | `5_36_ptrobj/` | Pointer comparison/subtraction from different objects |
-| 5.39 | `5_39_taintnoproto/` | Using tainted values as function pointers without prototypes |
-| 5.45 | `5_45_invfmtstr/` | Invalid format strings |
-| 5.46 | `5_46_taintsink_1/` | Tainted potentially mutilated non-character data (variant 1) |
-| 5.46 | `5_46_taintsink_2/` | Tainted potentially mutilated non-character data (variant 2) |
-| 5.46 | `5_46_taintsink_3/` | Tainted potentially mutilated non-character data (variant 3) |
+The patches target `xdp_synproxy_kern.c` and demonstrate ISO-IEC TS 17961-2013 rule violations while maintaining core SYN proxy functionality.
 
-Each vulnerability rule is implemented as a Git commit patch that modifies the base `xdp_synproxy_kern.c` file. These patches can be:
-- **Applied manually**: Use `git apply` or `git am` to apply individual patches for manual testing
-- **Applied automatically**: Use the XVTLAS tool which handles patch application, compilation, verification, and output export
-
-The patches are designed to demonstrate specific ISO-IEC TS 17961-2013 rule violations while maintaining the core SYN proxy functionality.
-
-### Rules Not Applicable to XDP/eBPF
-
-The following ISO-IEC TS 17961-2013 rules are **not applicable** to XDP/eBPF environments due to fundamental limitations and architectural differences:
-
-| Rule | Title | Category | Reason |
-|------|-------|----------|---------|
-| **5.2** | Accessing freed memory | Memory Management | No `free()` function or dynamic memory allocation |
-| **5.3** | Accessing shared objects in signal handlers | Signal Handling | BPF helper `bpf_send_signal()` is present but cannot be used to implement this vulnerability as it sends the signal to the user space and woruld not create the race condition related to  the `err_msg` pointer as described in the PDF. |
-| **5.5** | Calling functions from signal handlers except abort, _Exit, signal | Signal Handling | `bpf_send_signal()` cannot take custom handler as an argument. |
-| **5.7** | Calling signal from interruptible signal handlers | Signal Handling | No custom signal handler possible |
-| **5.8** | Calling system | Library Functions | No `system()` function available |
-| **5.12** | Copying a FILE object | File Operations | No file structures or FILE type available |
-| **5.18** | Failing to close files or free memory | Memory Management | No `malloc()` or file close operations available |
-| **5.19** | Failing to detect and handle stdlib errors | Library Functions | Limited standard library support |
-| **5.20** | Forming invalid pointers by library function | Library Functions | No libc functions available |
-| **5.21** | Allocating insufficient memory | Memory Management | No dynamic memory allocation (`malloc`) in eBPF |
-| **5.23** | Freeing memory multiple times | Memory Management | No `free()` function available |
-| **5.25** | Incorrect use of errno | Discarded | Not particularly relevant to eBPF testing |
-| **5.27** | Interleaving stream I/O without flush or positioning | File Operations | No buffered stdio operations |
-| **5.29** | Modifying getenv/localeconv/etc. return values | Library Functions | No `getenv()` or `setlocale()` functions |
-| **5.32** | Invalid chars to character-handling functions | Library Functions | Limited `ctype.h` support (questionable availability) |
-| **5.34** | Re/freeing non-dynamically allocated memory | Memory Management | No dynamic memory allocation or `free()` operations |
-| **5.37** | Tainted strings are passed to a string copying function | Format String | No `strcpy()` |
-| **5.38** | Taking size of pointer to get pointed-to size | Discarded | Not useful for eBPF vulnerability testing scenarios |
-| **5.40** | Tainted value used in formatted I/O | Format String | Limited formatted I/O capabilities |
-| **5.41** | Invalid value for fsetpos | File Operations | No file operations available |
-| **5.42** | Using object overwritten by getenv/localeconv/etc. | Library Functions | No libc environment functions |
-| **5.43** | Char values indistinguishable from EOF | File Operations | No file operations or EOF handling |
-| **5.44** | Using reserved identifiers | Discarded | Not relevant for security testing focus |
-
-**Note**: Rules 5.25, 5.38, and 5.44 are technically applicable to XDP/eBPF but were intentionally discarded as not useful for practical vulnerability testing.
-
-These exclusions reflect the constrained execution environment of eBPF programs, which operate in kernel space with:
-- No dynamic memory allocation
-- No signal handling  
-- Limited standard library access
-- No file system operations
-- Restricted system call access
+For a complete list of rules not applicable to XDP/eBPF environments, see the [XDP SynProxy README](./XDPs/xdp_synproxy/README.md#rules-not-applicable-to-xdpebpf).
 
 
 ### 6. XVTLAS - XDP Verifier Launch Automation Suite
