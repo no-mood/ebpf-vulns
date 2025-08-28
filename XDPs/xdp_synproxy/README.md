@@ -68,7 +68,7 @@ The following ISO-IEC TS 17961-2013 rules are **not applicable** to XDP/eBPF env
 | **5.25** | Incorrect use of errno | Discarded | Not particularly relevant to eBPF testing |
 | **5.27** | Interleaving stream I/O without flush or positioning | File Operations | No buffered stdio operations |
 | **5.29** | Modifying getenv/localeconv/etc. return values | Library Functions | No `getenv()` or `setlocale()` functions |
-| **5.32** | Invalid chars to character-handling functions | Library Functions | Limited `ctype.h` support (questionable availability) |
+| **5.32** | Invalid chars to character-handling functions | Library Functions | Can't import `ctype.h` library (error: failed to load: -13 ), No character-handling functions available in eBPF environment |
 | **5.34** | Re/freeing non-dynamically allocated memory | Memory Management | No dynamic memory allocation or `free()` operations |
 | **5.37** | Tainted strings are passed to a string copying function | Format String | No `strcpy()` |
 | **5.38** | Taking size of pointer to get pointed-to size | Discarded | Not useful for eBPF vulnerability testing scenarios |
