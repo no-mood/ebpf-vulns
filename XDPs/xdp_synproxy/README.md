@@ -86,9 +86,18 @@ The following ISO-IEC TS 17961-2013 rules are **not applicable** to XDP/eBPF env
 | **5.41** | Invalid value for fsetpos | File Operations | No file operations available |
 | **5.42** | Using object overwritten by getenv/localeconv/etc. | Library Functions | No libc environment functions |
 | **5.43** | Char values indistinguishable from EOF | File Operations | No file operations or EOF handling |
-| **5.44** | Using reserved identifiers | Discarded | Not relevant for security testing focus |
+| **5.44** | Using reserved identifiers | Discarded | Not relevant for security testing focus*** |
 
 **Note**: Rules 5.25, 5.38, and 5.44 are technically applicable to XDP/eBPF but were intentionally discarded as not useful for practical vulnerability testing.
+
+**Rule 5.25**
+Rule 5.25 addresses the correct use of errno when interacting with Standard C Library functions. In the XDP/eBPF context, this rule is not relevant for security testing because eBPF programs do not link against the C standard library and do not rely on errno for error signaling. Instead, BPF helpers communicate errors via explicit return values. Misuse of errno cannot occur in this environment and therefore does not introduce security risks. For the security of eBPF/XDP code, this rule can be considered not applicable.
+
+**Rule 5.38**
+While this rule is useful for preventing functional bugs in standard C code, it is not relevant for eBPF/XDP vulnerability testing. eBPF programs array bounds must be explicitly tracked, and pointer size misuse does not introduce exploitable security vulnerabilities. At worst, such code leads to logical errors rather than security issues. Therefore, this rule can be considered not useful in a security review.
+
+**Rule 5.44** is about avoiding the use of reserved identifiers (like errno, or identifiers starting with _ followed by uppercase) to ensure portability and prevent undefined behavior in standard C environments.
+In the context of XDP/eBPF, this rule has little relevance for security testing because eBPF programs operate in a restricted environment without the C standard library, and reserved identifier clashes cannot lead to security vulnerabilities. At worst, such violations cause compilation issues, not exploitable conditions.
 
 These exclusions reflect the constrained execution environment of eBPF programs, which operate in kernel space with:
 - No dynamic memory allocation
