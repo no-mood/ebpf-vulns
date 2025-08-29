@@ -28,7 +28,7 @@ index 0d0d990..bbcf4ec 100644
 +    bpf_printk("peeking map value (may be NULL)");
 +    /* value may be NULL (or out-of-domain for verifier); still deref */
 +    __builtin_memcpy(buf, value, sizeof(__u64));
-+    bpf_printk("peeked map value");
++    bpf_printk("peeked map value %s",buf[0]);
 +}
 +/* === Test end === */
 +
