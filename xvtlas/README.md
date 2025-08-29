@@ -72,7 +72,7 @@ This will:
 ```bash
  ./xvtlas/xvtlas \
   --run-single "./XDPs/xdp_synproxy/patches/path/to/patch/*.patch" \
-  --base-file "./XDPs/xdp_synproxy/xdp_synproxy.c"
+  --base-file "./XDPs/xdp_synproxy/xdp_synproxy_kern.c"
 ```
 
 This:
