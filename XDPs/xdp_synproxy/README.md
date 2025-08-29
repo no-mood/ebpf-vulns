@@ -511,7 +511,7 @@ Why this approach? If the verifier statically determines that a divisor *could* 
 
 ***Unfortunately the eBPF runtime environment defines specific behavior for division/modulo by zero by setting the destination register to zero.***
 
-**NB**: The same example is split across two different test files (example 2 and 3) reproducing the same operations in two different files for completeness.  
+**NB**: The same example is split across two different test files (example 2 and 3) reproducing the same operations in two different files for completeness.
 
 **Verifier:** Passed (but not an issue at runtime).
 
@@ -744,14 +744,44 @@ This test demonstrates how dynamically adjusting packet size can expose uninitia
 
 ### [5.36 ptrobj]: Subtracting or comparing pointers from different array objects
 
-Subtracting or relationally comparing pointers that don't refer to the same array object results in undefined behavior. This commonly occurs when accidentally mixing pointers from different memory regions.
+Subtracting or relationally comparing pointers that don't refer to the same array object results in undefined behavior. This commonly occurs when accidentally mixing pointers from different memory regions in packet processing scenarios.
+
+#### Example a: Local Buffer vs Packet Data
+
+Comparing and performing arithmetic between packet data pointers and local stack buffers represents the most basic violation of pointer object rules, where two completely unrelated memory objects are treated as if they were part of the same array.
 
 **Implementation Details:**
 - Creates two distinct objects: packet data from the network (Object 1) and a local stack buffer (Object 2).
-- Demonstrates the vulnerability by comparing pointers from these different objects (`if ((char *)hdr->eth != local_buffer)`), which is always true but undefined behavior.
+- Demonstrates comparison violations (`if ((char *)hdr->eth != local_buffer)`) between completely separate memory regions.
 - Performs pointer subtraction between different objects (`ptrdiff_t wrong_distance = (char *)hdr->tcp - local_buffer`), producing meaningless results.
-- Shows relational comparisons (`if ((char *)hdr->eth > local_buffer)`) that have no defined meaning since the pointers reference unrelated memory regions.
-- Uses the undefined results in program logic (`if (wrong_distance != 0)`), demonstrating how such violations can lead to unpredictable program behavior and potential security issues.
+- Shows relational comparisons (`>`, `<`) that have no defined meaning since pointers reference unrelated memory regions.
+- Uses undefined results in program logic, demonstrating how violations lead to unpredictable behavior.
+
+
+
+#### Example b: Context Pointers vs Packet Data
+
+XDP context structure pointers and packet data pointers represent different memory objects that should not be compared or subtracted, as they reside in completely separate memory regions managed by different kernel subsystems.
+
+**Implementation Details:**
+- Focuses on violations between XDP context structure pointers and packet data pointers.
+- Tests real XDP context pointer comparisons (`struct xdp_md *xdp_ctx`) versus packet buffer data.
+- Demonstrates context field violations (data_meta vs data) from different memory regions.
+- Shows how eBPF verifier handles context-specific pointer arithmetic violations.
+- Modified function signature to include context parameter for realistic testing.
+
+**Verifier:** Passed (but produces undefined results that may leak memory layout information).
+
+#### Example c: Map Pointers vs Packet Data
+
+eBPF map value pointers (heap objects) and packet data pointers represent fundamentally different memory objects, where map values reside in kernel heap space while packet data exists in network buffer memory.
+
+**Implementation Details:**
+- Targets violations between eBPF map value pointers (heap objects) and packet data.
+- Tests comparisons between different map types (hash vs array maps) representing different heap objects.
+- Demonstrates map value vs packet boundary violations across distinct memory regions.
+- Shows realistic packet processing scenarios where map lookup results are incorrectly compared with network data.
+- Includes additional hash map for testing cross-map pointer violations.
 
 **Verifier:** Passed (but produces undefined results that may leak memory layout information).
 
