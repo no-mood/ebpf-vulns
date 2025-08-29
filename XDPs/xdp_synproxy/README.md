@@ -24,7 +24,11 @@ All vulnerability patches target `xdp_synproxy_kern.c`, an XDP-based SYN proxy i
 | 5.11 | `5_11_alignconv/` | Converting pointer values to more strictly aligned pointer types | Gianfranco Trad |
 | 5.13 | `5_13_objdec/` | Declaring function or object in incompatible ways | Gianfranco Trad |
 | 5.14 | `5_14_nullref/` | Dereferencing a possibly null or invalid pointer | Giorgio Fardo |
+| 5.14a | `5_14a_nullref/` | Dereferencing a possibly null or invalid pointer | Giorgio Fardo |
+| 5.14b | `5_14b_nullref/` | Dereferencing a possibly null or invalid pointer | Giorgio Fardo |
 | 5.15 | `5_15_addrescape/` | Escaping the address of an automatic object | Giorgio Fardo |
+| 5.15a | `5_15a_addrescape/` | Escaping the address of an automatic object | Giorgio Fardo |
+| 5.15b | `5_15b_addrescape/` | Escaping the address of an automatic object | Giorgio Fardo |
 | 5.16a | `5_16a_signconv/` | Raw version (Direct TCP payload access) | Giovanni Nicosia |
 | 5.16b | `5_16b_signconv/` | Verifier-passing version (Controlled demonstration) | Giovanni Nicosia |
 | 5.17 | `5_17_swtchdflt/` | Switch statement missing default case or incomplete enumeration coverage | Giovanni Nicosia |
@@ -39,8 +43,11 @@ All vulnerability patches target `xdp_synproxy_kern.c`, an XDP-based SYN proxy i
 | 5.31 | `5_31_nonnullcs/` | Non-null-terminated character sequences | Francesco Rollo |
 | 5.33 | `5_33_restrict/` | Passing pointers into the same object as arguments to different restrict-qualified parameters | Francesco Rollo |
 | 5.35 | `5_35_uninit_mem/` | Referencing uninitialized memory | Giorgio Fardo |
+| 5.35a | `5_35a_uninit_mem/` | Referencing uninitialized memory | Giorgio Fardo |
+| 5.35b | `5_35b_uninit_mem/` | Referencing uninitialized memory | Giorgio Fardo |
 | 5.36 | `5_36_ptrobj/` | Subtracting or comparing pointers from different array objects | Giovanni Nicosia |
 | 5.39 | `5_39_taintnoproto/` | Using tainted values as function pointers without prototypes | Giorgio Fardo |
+| 5.40 | `5_40_taintformatio` | Tainted value used in formatted I/O | Giorgio Fardo |
 | 5.45 | `5_45_invfmtstr/` | Invalid format strings in formatted I/O functions | Giovanni Nicosia |
 | 5.46_1 | `5_46_taintsink_1/` | Array indexing with tainted value | Francesco Rollo |
 | 5.46_2 | `5_46_taintsink_2/` | Memory copy with tainted length | Francesco Rollo |
@@ -76,7 +83,6 @@ The following ISO-IEC TS 17961-2013 rules are **not applicable** to XDP/eBPF env
 | **5.34** | Re/freeing non-dynamically allocated memory | Memory Management | No dynamic memory allocation or `free()` operations |
 | **5.37** | Tainted strings are passed to a string copying function | Format String | No `strcpy()` |
 | **5.38** | Taking size of pointer to get pointed-to size | Discarded | Not useful for eBPF vulnerability testing scenarios |
-| **5.40** | Tainted value used in formatted I/O | Format String | Limited formatted I/O capabilities |
 | **5.41** | Invalid value for fsetpos | File Operations | No file operations available |
 | **5.42** | Using object overwritten by getenv/localeconv/etc. | Library Functions | No libc environment functions |
 | **5.43** | Char values indistinguishable from EOF | File Operations | No file operations or EOF handling |
@@ -723,6 +729,30 @@ xdp_synproxy_kern.c:788:7: warning: passing arguments to a function without a pr
 **Exploitable:** Limited — although the call is undefined, in practice the compiler will generate a call instruction with a fixed calling convention. The tainted value may corrupt stack arguments or registers, but within eBPF’s restricted environment the damage is confined and cannot be steered toward arbitrary memory writes. It primarily results in unpredictable logic, not exploitable memory corruption.
 
 *Signed-by: Giorgio Fardo*
+
+### [5.40 taintformatio]: Tainted format string usage in eBPF helpers
+
+Calls to the `sprintf` function that can result in writes outside the bounds of the destinzation array shall be diagnosed when any of its variadic arguments are tainted.
+
+In this case we use the helper `bpf_snprintf`, on the other hand `bpf_trace_printk` cannot be exploited as the arguments are restricted.
+**Implementation Details:**
+- A helper function `taintedBufPrint()` reads attacker-controlled values directly from the TCP header:
+  - `tainted_value = hdr->tcp->seq;`
+  - `tainted_len = hdr->tcp->window;`
+- These values are passed to `bpf_snprintf`:
+  ```c
+  format = bpf_snprintf(buf, sizeof(buf), "%d", &args[0], tainted_len);
+  ```
+- Here, `tainted_len` is used as the *string length parameter*, directly influencing how much data `bpf_snprintf` attempts to write.
+- The target buffer `buf[4]` is intentionally undersized, making the call unsafe if the verifier allowed it.
+- The verifier detects this as **invalid indirect access to stack** and rejects the program (`call bpf_snprintf#165 invalid indirect access to stack`).
+
+**Warnings:** None at compile time.
+**Verifier:** **Rejected.** The verifier identifies an unbounded tainted access (`invalid indirect access to stack`).
+**Exploitable:** Not exploitable. The verifier fully rejects the program before it can be JITed or run. Unlike user-space format string bugs, this does not result in buffer overflows or memory corruption in kernel/eBPF contexts, but simply prevents the program from loading
+
+*Signed-by: Giorgio Fardo*
+
 
 ### [5.45 invfmtstr]: Invalid format strings in formatted I/O functions
 
