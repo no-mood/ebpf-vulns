@@ -340,12 +340,17 @@ Dereferencing pointers returned by helper functions such as `bpf_map_lookup_elem
 - The function attempts to `__builtin_memcpy` from `value` into `buf` without verifying whether `value` is valid.
 - If `bpf_map_lookup_elem()` returns `NULL` (no element present), this results in an invalid dereference.
 
-**Verifier:** Passed. The BPF verifier does not enforce `NULL` checks for map lookups; it assumes that programs handle failures correctly. As a result, the invalid dereference is not detected at load time.
+**Verifier:** Not passed : 
+```
+; __builtin_memcpy(buf, value, sizeof(__u64));
+170: (71) r3 = *(u8 *)(r7 +0)
+R7 invalid mem access 'map_value_or_null'
+processed 122 insns (limit 1000000) max_states_per_insn 0 total_states 9 peak_states 9 mark_read 5
+-- END PROG LOAD LOG --
+```
+**Observed Behavior:** No passed verifier due to probable null value in map.
 
-**Observed Behavior:** The program compiles cleanly, passes verification, and loads without warnings. During runtime testing, the debug prints are visible, but sometimes the program resets connections (e.g., connection resets observed when connecting via `nc` to a netcat server behind the synproxy). This suggests that the unchecked dereference may cause intermittent failures or program termination during packet processing.
-
-**Exploitable:**  In eBPF: While the safety model typically prevents persistent kernel memory corruption, unchecked dereferencing of `NULL` can still terminate the BPF program or cause subtle disruptions (e.g., dropped packets, unexpected resets). This can be leveraged as a DoS, where crafted traffic triggers repeated invalid map lookups, forcing the BPF program to reset connections or abort processing.
-
+**Exploitable:** Not exploitable.
 *Signed-by: Giorgio Fardo*
 
 ### [5.15 addrescape]: Escaping the address of an automatic object
