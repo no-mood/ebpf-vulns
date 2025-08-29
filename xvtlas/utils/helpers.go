@@ -51,7 +51,7 @@ func RunVerifier(oFile, cFile, prettyPath string, cfg *config.EBPFConfig) []byte
 
 	pinPath := progName
 
-	cmdStr := fmt.Sprintf("sudo bpftool prog load %s /sys/fs/bpf/%s 2>&1 | python3 %s -c %s", oFile, pinPath, prettyPath, cFile)
+	cmdStr := fmt.Sprintf("sudo bpftool prog load %s /sys/fs/bpf/%s 2>&1 | python3 %s -c %s -o %s", oFile, pinPath, prettyPath, cFile, oFile)
 	fmt.Println("Running Verifier Command:", cmdStr)
 
 	cmd := exec.Command("bash", "-c", cmdStr)
