@@ -61,6 +61,9 @@ All vulnerability patches target `xdp_synproxy_kern.c`, an XDP-based SYN proxy i
 | 5.36a | `5_36a_ptrobj/` | Subtracting or comparing pointers from different array objects - Local Buffer Case | Giovanni Nicosia |
 | 5.36b | `5_36b_ptrobj/` | Subtracting or comparing pointers from different array objects - Context Pointers Case | Giovanni Nicosia |
 | 5.36c | `5_36c_ptrobj/` | Subtracting or comparing pointers from different array objects - Map Pointers Case | Giovanni Nicosia |
+| 5.20a | `5_20a_libptr/` | Forming invalid pointers by library function - __builtin_memcpy with wrong size | Giovanni Nicosia |
+| 5.20b | `5_20b_libptr/` | Forming invalid pointers by library function - BPF helpers with invalid parameters | Giovanni Nicosia |
+| 5.20c | `5_20c_libptr/` | Forming invalid pointers by library function - Packet data access with wrong size | Giovanni Nicosia |
 | 5.39 | `5_39_taintnoproto/` | Using tainted values as function pointers without prototypes | Giorgio Fardo |
 | 5.40 | `5_40_taintformatio` | Tainted value used in formatted I/O | Giorgio Fardo |
 | 5.45 | `5_45_invfmtstr/` | Invalid format strings in formatted I/O functions | Giovanni Nicosia |
@@ -88,7 +91,6 @@ The following ISO-IEC TS 17961-2013 rules are **not applicable** to XDP/eBPF env
 | **5.12** | Copying a FILE object | File Operations | No file structures or FILE type available |
 | **5.18** | Failing to close files or free memory | Memory Management | No `malloc()` or file close operations available |
 | **5.19** | Failing to detect and handle stdlib errors | Library Functions | Limited standard library support |
-| **5.20** | Forming invalid pointers by library function | Library Functions | No libc functions available |
 | **5.21** | Allocating insufficient memory | Memory Management | No dynamic memory allocation (`malloc`) in eBPF |
 | **5.23** | Freeing memory multiple times | Memory Management | No `free()` function available |
 | **5.25** | Incorrect use of errno | Discarded | Not particularly relevant to eBPF testing |
@@ -1205,6 +1207,57 @@ eBPF map value pointers (heap objects) and packet data pointers represent fundam
 - Includes additional hash map for testing cross-map pointer violations.
 
 **Verifier:** Passed (but produces undefined results that may leak memory layout information).
+
+*Signed-by: Giovanni Nicosia*
+
+### [5.20 libptr]: Forming invalid pointers by library function
+
+Invoking a function with arguments that cause it to form pointers that do not point into or just past the end of an object violates Rule 5.20. While eBPF doesn't have access to standard C library functions, it still uses memory manipulation functions like `__builtin_memcpy` and BPF helpers that can form invalid pointers through incorrect size calculations.
+
+#### Example a: Invalid __builtin_memcpy with oversized buffer copy
+
+This example demonstrates Rule 5.20 violation using `__builtin_memcpy` with incorrect size parameters that cause the function to access beyond allocated object boundaries.
+
+**Implementation Details:**
+- Allocates a 16-byte buffer but attempts to copy 24 bytes using `__builtin_memcpy`
+- The library function forms pointers beyond the allocated object bounds when performing the oversized copy
+- Includes TCP options extraction scenario where options can be up to 40 bytes but buffer is only 16 bytes
+- Shows how size calculation errors lead to buffer overruns that violate pointer validity rules
+- Demonstrates the security implications when fixed-size copy operations exceed buffer boundaries
+
+**Verifier:** **Passed** - The eBPF verifier does not detect this buffer overflow, allowing the violation to execute
+
+**Exploitable:** **Potentially dangerous** - Buffer overflow of 8 bytes can corrupt stack variables adjacent to the buffer, potentially causing program crashes or memory corruption
+
+#### Example b: Invalid BPF helper usage with wrong parameters
+
+This example shows Rule 5.20 violations using BPF helper functions with incorrect size parameters that cause invalid pointer formation during memory operations.
+
+**Implementation Details:**
+- Uses `bpf_probe_read_kernel` with size parameter (32 bytes) larger than destination buffer (12 bytes)
+- The BPF helper attempts to form invalid pointers when accessing beyond the actual buffer boundaries
+- Demonstrates how helper function parameter mismatches can lead to out-of-bounds memory access
+- Shows realistic scenarios where helper size parameters don't match buffer expectations
+- Based on Rule 5.20 subpoint 5.20.1: functions taking (pointer, size_bytes) parameters
+
+**Verifier:** **Rejected** - The eBPF verifier blocks this pattern, detecting the invalid buffer size parameter
+
+**Exploitable:** **Not exploitable** - The verifier prevents this violation from executing, demonstrating better protection for BPF helpers compared to `__builtin_memcpy`
+
+#### Example c: Packet data access with wrong size calculations
+
+This example demonstrates Rule 5.20 violations when accessing packet data with incorrect size calculations that cause memory operations to exceed buffer boundaries.
+
+**Implementation Details:**
+- Performs size calculations using wrong data types (e.g., `sizeof(int) * 8 = 32` instead of `sizeof(char) * 8 = 8`)
+- Uses `__builtin_memcpy` with miscalculated sizes that exceed buffer boundaries (32 bytes into 20-byte buffer)
+- Shows how type assumption errors lead to incorrect size calculations in packet processing
+- Demonstrates pointer formation violations where type confusion causes out-of-bounds access
+- Based on Rule 5.20 Example 2: sizeof(int) vs sizeof(float) type confusion
+
+**Verifier:** **Passed** - The verifier does not detect type confusion in size calculations, allowing the buffer overflow
+
+**Exploitable:** **Dangerous** - Type confusion causing 12-byte buffer overflow may corrupt adjacent stack memory, leading to program instability or information leakage
 
 *Signed-by: Giovanni Nicosia*
 
