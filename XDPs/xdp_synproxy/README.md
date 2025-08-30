@@ -4,8 +4,6 @@ This directory contains vulnerability patches that implement various ISO-IEC TS 
 
 ## Vulnerability Patches
 
-Progress tracker and recap: https://docs.google.com/spreadsheets/d/17zbtS0Jd2qmZblBeo4BnHuop_OvKTKCIsaw-80wdXXQ/edit?usp=sharing
-
 All vulnerability patches target `xdp_synproxy_kern.c`, an XDP-based SYN proxy implementation taken from the Linux kernel selftests. The `patches/` directory contains vulnerability patches for each applicable rule from ISO-IEC TS 17961-2013:
 
 | Rule | Directory | Vulnerability Type | Author |
@@ -152,7 +150,7 @@ xdp_synproxy_kern.c:419:19: warning: comparison of distinct pointer types ('stru
 ## Rules
 ### [5.1 ptrcomp]: Accessing an object through a pointer to an incompatible type
 
-Accessing memory through a pointer to an incompatible type (other than `unsigned char`) is undefined behavior in C. This breaks the **strict aliasing rules** defined in ISO/IEC 9899:2011, 6.5§7, which restricts how objects can be accessed through lvalues of different types. Violating these rules can lead to unpredictable behavior, since the compiler may assume incompatible types do not alias and apply optimizations accordingly.  
+Accessing memory through a pointer to an incompatible type (other than `unsigned char`) is undefined behavior in C. This breaks the **strict aliasing rules** defined in ISO/IEC 9899:2011, 6.5§7, which restricts how objects can be accessed through lvalues of different types. Violating these rules can lead to unpredictable behavior, since the compiler may assume incompatible types do not alias and apply optimizations accordingly.
 
 In eBPF programs, such violations may not always be caught by the verifier, since the verifier mainly ensures memory safety (bounds checking) rather than C language aliasing rules. As such, UB injections of this kind often **compile and pass verifier checks**, but they still represent undefined behavior from the C standard’s perspective.
 
@@ -203,7 +201,7 @@ This is undefined behavior because the effective type of the object (`struct eth
 **Implementation Details:**
 - The Ethernet header is accessed as a raw `__u32` pointer:
   ```c
-  __u32 *fake_eth = (__u32 *)hdr->eth; 
+  __u32 *fake_eth = (__u32 *)hdr->eth;
   __u32 eth_value = *fake_eth;
   ```
 
@@ -499,11 +497,11 @@ All three UB injections pass the verifier since the eBPF memory model only check
 
 ### [5.13 objdec]: Declaring the same function or object in incompatible ways
 
-Declaring the same function or object multiple times with **incompatible types** is **undefined behavior** in C. According to ISO/IEC 9899:2011 §6.2.7, two or more incompatible declarations of the same object or function in the same program must be diagnosed.  
+Declaring the same function or object multiple times with **incompatible types** is **undefined behavior** in C. According to ISO/IEC 9899:2011 §6.2.7, two or more incompatible declarations of the same object or function in the same program must be diagnosed.
 
 Undefined behavior arises when:
-- An object is accessed through an lvalue of an incompatible type.  
-- A function is called through a pointer whose type is incompatible with the function’s actual definition.  
+- An object is accessed through an lvalue of an incompatible type.
+- A function is called through a pointer whose type is incompatible with the function’s actual definition.
 
 In **eBPF**, this UB manifests at **compile time**, because the compiler enforces type consistency for objects and functions. The eBPF verifier never sees the code, as it cannot be loaded if compilation fails.
 
@@ -722,9 +720,9 @@ A switch statement with an enumerated controlling expression that lacks a defaul
 
 Pointer arithmetic or array indexing that goes beyond the bounds of an object is **undefined behavior** in C (ISO/IEC 9899:2011 §6.5.6). This includes:
 
-- Addition or subtraction of pointers that result in addresses outside the same object or just past its end.  
-- Dereferencing pointers outside the valid object bounds.  
-- Array subscripts that access elements outside the declared array size.  
+- Addition or subtraction of pointers that result in addresses outside the same object or just past its end.
+- Dereferencing pointers outside the valid object bounds.
+- Array subscripts that access elements outside the declared array size.
 - Accessing flexible array members when no elements exist.
 
 In eBPF, the verifier enforces **memory safety** (bounds checking) for packet and map memory, but does not prevent all forms of logical OOB pointer manipulations if they remain within verifier-allowed memory regions. UB injections of this type may compile and pass the verifier, but still represent undefined behavior in C.
@@ -754,8 +752,8 @@ In eBPF, the verifier enforces **memory safety** (bounds checking) for packet an
 **Implementation Details:**
 - Pointer arithmetic beyond a TCP header field:
   ```c
-  __u16 *tcp_ports = (__u16 *)&hdr->tcp->source; 
-  __u16 *invalid_ptr = tcp_ports + 10;          
+  __u16 *tcp_ports = (__u16 *)&hdr->tcp->source;
+  __u16 *invalid_ptr = tcp_ports + 10;
   bpf_printk("[invptr-1]: Invalid pointer value: %p", invalid_ptr);
   ```
 
@@ -772,8 +770,8 @@ In eBPF, the verifier enforces **memory safety** (bounds checking) for packet an
 **Implementation Details:**
 - Dereferencing an out-of-bounds pointer:
   ```c
-  __u16 *tcp_ports = (__u16 *)&hdr->tcp->source; 
-  __u16 invalid_value = *(tcp_ports + 10);       
+  __u16 *tcp_ports = (__u16 *)&hdr->tcp->source;
+  __u16 invalid_value = *(tcp_ports + 10);
   bpf_printk("[invptr-2]: Invalid value: %u", invalid_value);
   ```
 
@@ -808,8 +806,8 @@ In eBPF, the verifier enforces **memory safety** (bounds checking) for packet an
 **Implementation Details:**
 - Pointer just past the end of TCP header:
   ```c
-  __u8 *tcp_header_end = (__u8 *)hdr->tcp + hdr->tcp_len; 
-  __u8 *invalid_access = tcp_header_end + 1;             
+  __u8 *tcp_header_end = (__u8 *)hdr->tcp + hdr->tcp_len;
+  __u8 *invalid_access = tcp_header_end + 1;
   bpf_printk("[invptr-4]: Invalid access pointer: %p", invalid_access);
   ```
 
