@@ -11,6 +11,9 @@ All vulnerability patches target `xdp_synproxy_kern.c`, an XDP-based SYN proxy i
 | Rule | Directory | Vulnerability Type | Author |
 |------|-----------|--------------------|---------|
 | 5.1 | `5_1_ptrcomp/` | Accessing an object through a pointer to an incompatible type | Gianfranco Trad |
+| 5.1a | `5_01a_ptrcomp/` | Accessing an object through a pointer to an incompatible type | Gianfranco Trad |
+| 5.1b | `5_01b_ptrcomp/` | Accessing an object through a pointer to an incompatible type | Gianfranco Trad |
+| 5.1c | `5_01c_ptrcomp/` | Accessing an object through a pointer to an incompatible type | Gianfranco Trad |
 | 5.4 | `5_4_boolasgn/` | Assignment in conditional expressions | Francesco Rollo |
 | 5.6a | `5_06a_argcomp/` | Function pointer type incompatibility | Giovanni Nicosia |
 | 5.6b | `5_06b_argcomp/` | Wrong number of arguments | Giovanni Nicosia |
@@ -22,7 +25,10 @@ All vulnerability patches target `xdp_synproxy_kern.c`, an XDP-based SYN proxy i
 | 5.10a_exploit | `5_10a_exploit_intptrconv/` | Information disclosure via pointer truncation bypass | Giovanni Nicosia |
 | 5.10b | `5_10b_intptrconv/` | Hardcoded integer to pointer conversion | Giovanni Nicosia |
 | 5.11 | `5_11_alignconv/` | Converting pointer values to more strictly aligned pointer types | Gianfranco Trad |
+| 5.11b | `5_11a_alignconv/` | Converting pointer values to more strictly aligned pointer types | Gianfranco Trad |
+| 5.11c | `5_11c_alignconv/` | Converting pointer values to more strictly aligned pointer types | Gianfranco Trad |
 | 5.13 | `5_13_objdec/` | Declaring function or object in incompatible ways | Gianfranco Trad |
+| 5.13b | `5_13b_objdec/` | Declaring function or object in incompatible ways | Gianfranco Trad |
 | 5.14 | `5_14_nullref/` | Dereferencing a possibly null or invalid pointer | Giorgio Fardo |
 | 5.14a | `5_14a_nullref/` | Dereferencing a possibly null or invalid pointer | Giorgio Fardo |
 | 5.14b | `5_14b_nullref/` | Dereferencing a possibly null or invalid pointer | Giorgio Fardo |
@@ -33,6 +39,13 @@ All vulnerability patches target `xdp_synproxy_kern.c`, an XDP-based SYN proxy i
 | 5.16b | `5_16b_signconv/` | Verifier-passing version (Controlled demonstration) | Giovanni Nicosia |
 | 5.17 | `5_17_swtchdflt/` | Switch statement missing default case or incomplete enumeration coverage | Giovanni Nicosia |
 | 5.22 | `5_22_invptr/` | Using out-of-bounds pointers or array subscripts | Gianfranco Trad |
+| 5.22b | `5_22_invptr/` | Using out-of-bounds pointers or array subscripts | Gianfranco Trad |
+| 5.22c | `5_22_invptr/` | Using out-of-bounds pointers or array subscripts | Gianfranco Trad |
+| 5.22d | `5_22_invptr/` | Using out-of-bounds pointers or array subscripts | Gianfranco Trad |
+| 5.22e | `5_22_invptr/` | Using out-of-bounds pointers or array subscripts | Gianfranco Trad |
+| 5.22f | `5_22_invptr/` | Using out-of-bounds pointers or array subscripts | Gianfranco Trad |
+| 5.24a | `5_24a_usrfmt/` | Tainted input in format strings | Gianfranco Trad |
+| 5.24b | `5_24b_usrfmt/` | Tainted input in format strings | Gianfranco Trad |
 | 5.26 | `5_26_diverr/` | Integer division errors | Francesco Rollo |
 | 5.26 | `5_26_diverr_2/` | Integer division errors | Francesco Rollo |
 | 5.26 | `5_26_diverr_3/` | Integer division errors | Francesco Rollo |
@@ -135,6 +148,78 @@ xdp_synproxy_kern.c:419:19: warning: comparison of distinct pointer types ('stru
 ```
 
 ## Rules
+### [5.1 ptrcomp]: Accessing an object through a pointer to an incompatible type
+
+Accessing memory through a pointer to an incompatible type (other than `unsigned char`) is undefined behavior in C. This breaks the **strict aliasing rules** defined in ISO/IEC 9899:2011, 6.5§7, which restricts how objects can be accessed through lvalues of different types. Violating these rules can lead to unpredictable behavior, since the compiler may assume incompatible types do not alias and apply optimizations accordingly.  
+
+In eBPF programs, such violations may not always be caught by the verifier, since the verifier mainly ensures memory safety (bounds checking) rather than C language aliasing rules. As such, UB injections of this kind often **compile and pass verifier checks**, but they still represent undefined behavior from the C standard’s perspective.
+
+---
+
+#### Example 1 (Patch 5.1a)
+
+**Implementation Details:**
+- The Ethernet header (`hdr->eth`) is **reinterpreted as an IPv4 header**:
+  ```c
+  struct iphdr *fake_ipv4 = (struct iphdr *)hdr->eth;
+  __u8 ttl = fake_ipv4->ttl;
+  ```
+
+  This breaks strict aliasing since an `ethhdr` is not compatible with an `iphdr`.
+
+  The `ttl` value is then compared against `DEFAULT_TTL` to decide whether to drop the packet.
+
+This is undefined behavior because the effective type of the object (`struct ethhdr`) is accessed through an incompatible type (`struct iphdr`).
+
+- **Verifier**: Passed.
+- **Compiler warnings**: None.
+- **Exploitable**: Not possible in eBPF due to verifier-enforced memory bounds (cannot go beyondhdr->eth bound), but semantically invalid under C aliasing rules.
+
+---
+
+#### Example 2 (Patch 5.1b)
+
+**Implementation Details:**
+- The Ethernet header is **reinterpreted as a TCP header**:
+  ```c
+  struct tcphdr *fake_tcp = (struct tcphdr *)hdr->eth;
+  __u16 fake_src_port = fake_tcp->source;
+  ```
+
+  The code then checks if the fake source port is `0` to potentially drop the packet.
+
+  Since the memory layout of `struct ethhdr` and `struct tcphdr` are incompatible, accessing the Ethernet data as a TCP header violates the aliasing rule.
+
+- **Verifier**: Passed.
+- **Compiler warnings**: None.
+- **Exploitable**: Not possible in eBPF due to verifier-enforced memory bounds , but logically incorrect under the C standard.
+
+---
+
+#### Example 3 (Patch 5.1c)
+
+**Implementation Details:**
+- The Ethernet header is accessed as a raw `__u32` pointer:
+  ```c
+  __u32 *fake_eth = (__u32 *)hdr->eth; 
+  __u32 eth_value = *fake_eth;
+  ```
+
+  This violates strict aliasing rules because the memory originally declared as a `struct ethhdr` is accessed as a plain integer pointer.
+
+  The retrieved value is printed with `bpf_printk`.
+
+- **Verifier**: Passed.
+- **Compiler warnings**: None.
+- **Exploitable**: Not possible in eBPF due to verifier-enforced memory bounds, though accessing structured header fields as raw integers is UB in standard C.
+
+---
+
+### Summary
+
+All three UB injections compile and pass the eBPF verifier since they remain within memory bounds and do not trigger invalid pointer dereferencing. However, they are undefined behavior under ISO C, as they access objects through incompatible pointer types. The verifier does not diagnose this class of UB.
+
+**Signed-by**: Gianfranco Trad
 
 ### [5.4 boolasgn]: No assignment in conditional expressions
 
@@ -328,6 +413,140 @@ Converting pointers to integers and back can lead to undefined behavior if the r
 
 *Signed-by: Giovanni Nicosia*
 
+### [5.11 alignconv]: Converting pointer values to more strictly aligned pointer types
+
+Converting a pointer value to a type that requires stricter alignment than the object actually provides is **undefined behavior** in C. According to MISRA C:2012 Rule 5.11 and ISO/IEC 9899:2011 §6.3.2.3, such conversions are invalid because the destination type may impose stricter alignment requirements than the source. If the underlying memory is not suitably aligned, dereferencing the pointer triggers undefined behavior.
+
+In **eBPF**, the verifier enforces bounds and provenance checks but does not track alignment requirements at the C standard level. This means that UB injections of this form often **compile and pass verifier checks**. However, from the perspective of ISO C semantics, they remain undefined.
+
+---
+
+#### Example 1 (Patch 5.11a)
+
+**Implementation Details:**
+- A local buffer is intentionally misaligned:
+  ```c
+  char unaligned_buf[sizeof(struct iphdr) + 1];
+  char *unaligned_ptr = &unaligned_buf[1]; // intentionally unaligned
+  struct iphdr *misaligned_iph = (struct iphdr *)unaligned_ptr;
+  __u8 dummy_version = misaligned_iph->version;
+  ```
+
+  The `unaligned_ptr` is offset by one byte, ensuring it is not aligned to `struct iphdr`’s natural boundary.
+
+  Accessing `misaligned_iph->version` is UB due to stricter alignment requirements.
+
+- **Verifier**: Passed.
+- **Compiler warnings**: None.
+- **Exploitable**: Not memory exploitable in eBPF. The verifier still enforces bounds safety; the misalignment only causes logical misbehavior, not arbitrary memory access. But this could incorrectly satisfy or bypass control-flow conditions.
+
+---
+
+#### Example 2 (Patch 5.11b)
+
+**Implementation Details:**
+- The field `tcp_len` (declared as `__u16`) is accessed through a `__u8` pointer:
+  ```c
+  __u8 *tcp_len_as_u8 = (__u8 *)&hdr->tcp_len;
+  __u8 fake_tcp_len = *tcp_len_as_u8;
+  if (fake_tcp_len == 0)
+      return XDP_DROP;
+  ```
+
+  This violates alignment and effective type rules by reinterpreting a `__u16` as a stricter `__u8`.
+
+  Although logically meaningless, the code compiles and passes verifier checks.
+
+- **Verifier**: Passed.
+- **Compiler warnings**: None.
+- **Exploitable**: Not memory exploitable. However, this type of UB can be logically exploitable:
+  - If program logic checks the full `__u16` but the UB cast inspects only the low byte, attackers can craft inputs where the LSBs match expected values (e.g., `0x0100 → 0x00` when truncated to `__u8`).
+  - This could incorrectly satisfy or bypass control-flow conditions.
+
+---
+
+#### Example 3 (Patch 5.11c)
+
+**Implementation Details:**
+- The Ethernet header pointer (`hdr->eth`, aligned for `struct ethhdr`) is converted to a `__u64 *`:
+  ```c
+  __u64 *strictly_aligned_ptr = (__u64 *)hdr->eth;
+  __u64 fake_eth_value = *strictly_aligned_ptr;
+  bpf_printk("[alignconv]: Accessed fake_eth_value: %llu", fake_eth_value);
+  ```
+
+  Since `__u64` may impose stricter alignment requirements than `struct ethhdr`, this conversion is undefined behavior if the pointer is not suitably aligned.
+
+- **Verifier**: Passed.
+- **Compiler warnings**: None.
+- **Exploitable**: Not memory exploitable. Same as above, potential for logical misinterpretation if the misaligned cast influences how header values are checked.
+
+---
+
+### Summary
+
+All three UB injections pass the verifier since the eBPF memory model only checks bounds and provenance, not alignment constraints. From the ISO C perspective, these are undefined behaviors because they convert pointers to more strictly aligned types than allowed.
+
+**Exploitability considerations**:
+- Not security-exploitable for memory corruption.
+- Potentially logically exploitable:
+  - Misaligned casts or narrowing reinterpretations (e.g., `__u16 → __u8`) can alter validation logic.
+  - Attackers may craft packets where only the low-order bytes match expectations, bypassing checks that should fail.
+
+*Signed-by*: Gianfranco Trad
+
+### [5.13 objdec]: Declaring the same function or object in incompatible ways
+
+Declaring the same function or object multiple times with **incompatible types** is **undefined behavior** in C. According to ISO/IEC 9899:2011 §6.2.7, two or more incompatible declarations of the same object or function in the same program must be diagnosed.  
+
+Undefined behavior arises when:
+- An object is accessed through an lvalue of an incompatible type.  
+- A function is called through a pointer whose type is incompatible with the function’s actual definition.  
+
+In **eBPF**, this UB manifests at **compile time**, because the compiler enforces type consistency for objects and functions. The eBPF verifier never sees the code, as it cannot be loaded if compilation fails.
+
+---
+
+#### Example 1 (Patch 5.13a)
+
+**Implementation Details:**
+- An object `fake_var` is declared with conflicting types:
+  ```c
+  extern int fake_var;
+  short fake_var = 42;  // Conflicting type (int vs short)
+  ```
+
+  The compiler produces a type mismatch error (`-Wint-conversion` or similar).
+
+- **Compilation**: Fails.
+- **Verifier**: Not reached.
+- **Exploitable**: Not exploitable; code does not compile, so no runtime behavior occurs.
+
+---
+
+#### Example 2 (Patch 5.13b)
+
+**Implementation Details:**
+- A function is declared with incompatible types:
+  ```c
+  extern int h(int a);
+  long h(long a) { return a * 2; }
+  ```
+
+  The compiler rejects this due to incompatible function types.
+
+- **Compilation**: Fails.
+- **Verifier**: Not reached.
+- **Exploitable**: Not exploitable; compilation prevents runtime execution.
+
+---
+
+### Summary
+
+UB from incompatible object or function declarations is caught at compile time, preventing the program from being loaded or executed.
+
+*Signed-by*: Gianfranco Trad
+
 ### [5.14 nullref]: Dereferencing a possibly null or invalid pointer
 
 Dereferencing pointers derived from potentially tainted input (e.g., packet headers) without validating them can result in undefined behavior, including invalid memory accesses or crashes.
@@ -496,6 +715,206 @@ A switch statement with an enumerated controlling expression that lacks a defaul
 **Verifier:** Passed (but causes undefined behavior on missing cases).
 
 *Signed-by: Giovanni Nicosia*
+
+### [5.22 invptr]: Using out-of-bounds pointers or array subscripts
+
+Pointer arithmetic or array indexing that goes beyond the bounds of an object is **undefined behavior** in C (ISO/IEC 9899:2011 §6.5.6). This includes:
+
+- Addition or subtraction of pointers that result in addresses outside the same object or just past its end.  
+- Dereferencing pointers outside the valid object bounds.  
+- Array subscripts that access elements outside the declared array size.  
+- Accessing flexible array members when no elements exist.
+
+In eBPF, the verifier enforces **memory safety** (bounds checking) for packet and map memory, but does not prevent all forms of logical OOB pointer manipulations if they remain within verifier-allowed memory regions. UB injections of this type may compile and pass the verifier, but still represent undefined behavior in C.
+
+---
+
+#### Example 1 (Patch 5.22a)
+
+**Implementation Details:**
+- Using a negative offset to access a map element:
+  ```c
+  int ub_offset = -MAX_ALLOWED_PORTS;
+  __u16 *value = bpf_map_lookup_elem(&allowed_ports, &ub_offset);  // UB
+  __u16 ub_trigger = *value;  // optional dereference
+  ```
+
+  This forms an out-of-bounds pointer relative to the map key space.
+
+- **Compilation**: Passed.
+- **Verifier**: Passed.
+- **Exploitable**: Not exploitable in eBPF due to map key checking; UB is logical.
+
+---
+
+#### Example 2 (Patch 5.22b)
+
+**Implementation Details:**
+- Pointer arithmetic beyond a TCP header field:
+  ```c
+  __u16 *tcp_ports = (__u16 *)&hdr->tcp->source; 
+  __u16 *invalid_ptr = tcp_ports + 10;          
+  bpf_printk("[invptr-1]: Invalid pointer value: %p", invalid_ptr);
+  ```
+
+  This produces a pointer outside the allocated TCP structure.
+
+- **Compilation**: Passed.
+- **Verifier**: Passed.
+- **Exploitable**: Not exploitable for memory corruption; may produce misleading logical values if used in calculations.
+
+---
+
+#### Example 3 (Patch 5.22c)
+
+**Implementation Details:**
+- Dereferencing an out-of-bounds pointer:
+  ```c
+  __u16 *tcp_ports = (__u16 *)&hdr->tcp->source; 
+  __u16 invalid_value = *(tcp_ports + 10);       
+  bpf_printk("[invptr-2]: Invalid value: %u", invalid_value);
+  ```
+
+  Access is UB because it points past the structure.
+
+- **Compilation**: Passed.
+- **Verifier**: Passed.
+- **Exploitable**: Only logically exploitable; no memory corruption possible in eBPF due to verifier bounds.
+
+---
+
+#### Example 4 (Patch 5.22d)
+
+**Implementation Details:**
+- Out-of-bounds array indexing:
+  ```c
+  __u16 tcp_array_info[3] = {hdr->tcp->source, hdr->tcp->dest, hdr->tcp_len};
+  __u16 out_of_bounds_value = tcp_array_info[5];  // UB
+  bpf_printk("[invptr-3]: Out-of-bounds array value: %u", out_of_bounds_value);
+  ```
+
+  This patch does not compile, as the compiler detects the OOB array access.
+
+- **Compilation**: Fails.
+- **Verifier**: Not reached.
+- **Exploitable**: Not applicable.
+
+---
+
+#### Example 5 (Patch 5.22e)
+
+**Implementation Details:**
+- Pointer just past the end of TCP header:
+  ```c
+  __u8 *tcp_header_end = (__u8 *)hdr->tcp + hdr->tcp_len; 
+  __u8 *invalid_access = tcp_header_end + 1;             
+  bpf_printk("[invptr-4]: Invalid access pointer: %p", invalid_access);
+  ```
+
+  UB occurs when using `invalid_access`, pointing outside the object.
+
+- **Compilation**: Passed.
+- **Verifier**: Passed.
+- **Exploitable**: Not exploitable for memory corruption; could mislead logic if low-byte checks are used.
+
+---
+
+#### Example 6 (Patch 5.22f)
+
+**Implementation Details:**
+- Flexible array member access with no elements:
+  ```c
+  struct {
+      __u16 len;
+      __u8 data[];
+  } *flexible_struct = (__u8 *)hdr->tcp;
+  __u8 invalid_flex_access = flexible_struct->data[0]; // UB
+  bpf_printk("[invptr-5]: Invalid flexible array access: %u", invalid_flex_access);
+  ```
+
+  Accessing a non-existent element is undefined.
+
+- **Compilation**: Passed.
+- **Verifier**: Passed.
+- **Exploitable**: Only logically exploitable; memory corruption prevented by verifier bounds.
+
+---
+
+### Summary
+
+- **Compiling and verifier behavior**: All patches except 5.22d compile and pass the eBPF verifier.
+- **Memory safety**: eBPF verifier prevents out-of-bounds memory access, so these UB injections cannot corrupt memory.
+- **Logical exploitability**: If the code performs partial checks (e.g., checking only LSBs of truncated values), OOB accesses could lead to unexpected logical results, potentially bypassing validation.
+
+*Signed-by*: Gianfranco Trad
+
+### [5.24 usrfmt]: Including tainted or out-of-domain input in a format string
+
+Using **tainted or unvalidated input** in a format string for formatted I/O functions (e.g., `printf`, `vfprintf`, `bpf_printk`) is **undefined behavior** in C (ISO/IEC 9899:2011 §7.21.6). This can lead to:
+
+- Crashes or segmentation faults.
+- Reading unintended memory (stack or heap).
+- Writing to arbitrary memory locations (e.g., via `%n` specifier).
+- Potential arbitrary code execution if an attacker controls part of the format string.
+
+**Notes:**
+
+- An empty string is not considered tainted.
+- Any comparison of a character to a value other than null may sanitize the string, but full control over the format string remains dangerous.
+
+In eBPF, the verifier ensures memory safety but does **not validate format string contents**. UB injections with tainted format strings may compile and pass the verifier, but still represent undefined behavior in C.
+
+---
+
+#### Example 1 (Patch 5.24a)
+
+**Implementation Details:**
+- A format string is retrieved from a BPF map:
+  ```c
+  __u32 key = hdr->ipv4->daddr;
+  char *tainted_fmt = bpf_map_lookup_elem(&values, &key); // Potentially user-controlled
+  if (tainted_fmt) {
+      bpf_printk(tainted_fmt); // UB: tainted format string
+  }
+  ```
+
+  Using a user-controlled string directly as a format argument is UB.
+
+- **Compilation**: Fails.
+  - **Reason**: `bpf_map_lookup_elem` returns `void *` in eBPF C, which cannot be implicitly converted to `char *` without a cast. Strict type rules in kernel BPF programs prevent direct compilation.
+- **Verifier**: Not reached due to compilation failure.
+- **Exploitable**: If compiled with proper casting, this could be logically exploitable, e.g., a `%n` specifier could allow writing to arbitrary memory locations in standard C. In eBPF, memory safety prevents actual memory corruption, but logic or information leakage could occur.
+
+---
+
+#### Example 2 (Patch 5.24b)
+
+**Implementation Details:**
+- Tainted input derived from the TCP header is inserted into a format string:
+  ```c
+  char tainted_input[16];
+  __builtin_memcpy(tainted_input, &hdr->tcp->source, sizeof(hdr->tcp->source));
+  tainted_input[sizeof(hdr->tcp->source)] = '\0';
+  bpf_printk("Tainted input: %s", tainted_input); // UB
+  ```
+
+  The input could be partially controlled by an attacker (e.g., through network packet data). Using it in a formatted string is UB.
+
+- **Compilation**: Passed.
+- **Verifier**: Passed.
+- **Exploitable**: Logic-level exploit possible.
+  - **Example**: If subsequent code parses the string or assumes format compliance, malformed input could bypass checks or corrupt logical processing.
+  - Memory corruption is not possible due to eBPF verifier bounds checking.
+
+---
+
+### Summary
+
+- **Patch 5.24a**: Does not compile due to strict pointer type mismatch from `bpf_map_lookup_elem`.
+- **Patch 5.24b**: Compiles and passes verifier; demonstrates UB via tainted input in format string.
+- **Exploitable scenarios**: Logical or information leakage; memory corruption prevented by eBPF verifier.
+
+*Signed-by*: Gianfranco Trad
 
 ### [5.26 diverr]: Integer division errors
 
