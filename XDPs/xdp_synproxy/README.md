@@ -219,7 +219,7 @@ This is undefined behavior because the effective type of the object (`struct eth
 
 All three UB injections compile and pass the eBPF verifier since they remain within memory bounds and do not trigger invalid pointer dereferencing. However, they are undefined behavior under ISO C, as they access objects through incompatible pointer types. The verifier does not diagnose this class of UB.
 
-**Signed-by**: Gianfranco Trad
+*Signed-by*: Gianfranco Trad
 
 ### [5.4 boolasgn]: No assignment in conditional expressions
 
@@ -778,7 +778,7 @@ In eBPF, the verifier enforces **memory safety** (bounds checking) for packet an
   Access is UB because it points past the structure.
 
 - **Compilation**: Passed.
-- **Verifier**: Passed.
+- **Verifier**: Not passed.
 - **Exploitable**: Only logically exploitable; no memory corruption possible in eBPF due to verifier bounds.
 
 ---
@@ -901,7 +901,7 @@ In eBPF, the verifier ensures memory safety but does **not validate format strin
   The input could be partially controlled by an attacker (e.g., through network packet data). Using it in a formatted string is UB.
 
 - **Compilation**: Passed.
-- **Verifier**: Passed.
+- **Verifier**: Not passed.
 - **Exploitable**: Logic-level exploit possible.
   - **Example**: If subsequent code parses the string or assumes format compliance, malformed input could bypass checks or corrupt logical processing.
   - Memory corruption is not possible due to eBPF verifier bounds checking.
