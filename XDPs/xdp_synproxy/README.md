@@ -799,6 +799,10 @@ In eBPF, the verifier enforces **memory safety** (bounds checking) for packet an
 
 - **Compilation**: Passed.
 - **Verifier**: Not passed.
+```
+Invalid access to context parameter
+```
+
 - **Exploitable**: Only logically exploitable; no memory corruption possible in eBPF due to verifier bounds.
 
 ---
@@ -924,6 +928,10 @@ In eBPF, the verifier ensures memory safety but does **not validate format strin
 
 - **Compilation**: Passed.
 - **Verifier**: Not passed.
+```
+Invalid access to context parameter
+```
+
 - **Exploitable**: Logic-level exploit possible.
   - **Example**: If subsequent code parses the string or assumes format compliance, malformed input could bypass checks or corrupt logical processing.
   - Memory corruption is not possible due to eBPF verifier bounds checking.
