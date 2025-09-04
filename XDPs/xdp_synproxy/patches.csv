@@ -32,12 +32,12 @@ Test case id,Violated Rule,Compiler errors,Compiler error details,Extra compiler
 5_20c_libptr,5.20 libptr - Type confusion in size calculations,no,,yes,comparison of distinct pointer types [-Wcompare-distinct-pointer-types],no,,yes,Type confusion causing 12-byte buffer overflow corrupting adjacent stack memory,Giovanni Nicosia,Based on Rule 5.20 Example 2 sizeof type confusion
 5_22_invptr,5.22a invptr - Using out-of-bounds pointers or array subscripts,no,,no,,no,,no,Not exploitable in eBPF due to verifier-enforced memory bounds, Gianfranco Trad,
 5_22b_invptr,5.22b invptr - Using out-of-bounds pointers or array subscripts,no,,no,,no,,no,Not exploitable for memory corruption; logical misinterpretation possible, Gianfranco Trad,
-5_22c_invptr,5.22c invptr - Using out-of-bounds pointers or array subscripts,no,,no,,yes,,no,Only logically exploitable; no memory corruption possible, Gianfranco Trad,
+5_22c_invptr,5.22c invptr - Using out-of-bounds pointers or array subscripts,no,,no,,yes,Invalid access to context parameter,no,Only logically exploitable; no memory corruption possible, Gianfranco Trad,
 5_22d_invptr,5.22d invptr - Using out-of-bounds pointers or array subscripts,yes,array subscript is out of bounds,no,,no,,no,Compilation fails preventing runtime execution, Gianfranco Trad,
 5_22e_invptr,5.22e invptr - Using out-of-bounds pointers or array subscripts,no,,no,,no,,no,Not exploitable for memory corruption; logical misinterpretation possible, Gianfranco Trad,
 5_22f_invptr,5.22f invptr - Using out-of-bounds pointers or array subscripts,no,,no,,no,,no,Only logically exploitable; memory corruption prevented by verifier bounds, Gianfranco Trad,
 5_24a_usrfmt,5.24a usrfmt - Tainted input in format strings,yes,bpf_map_lookup_elem returns void * incompatible with char *,no,,no,,no,Compilation fails due to strict pointer type mismatch, Gianfranco Trad,
-5_24b_usrfmt,5.24b usrfmt - Tainted input in format strings,no,,no,,yes,,no,Logic-level exploit possible; memory corruption prevented by verifier, Gianfranco Trad,
+5_24b_usrfmt,5.24b usrfmt - Tainted input in format strings,no,,no,,yes,Invalid access to context parameter,no,Logic-level exploit possible; memory corruption prevented by verifier, Gianfranco Trad,
 5_26a_diverr,5.26a diverr - Integer division errors,no,,no,,no,,no,,Francesco Rollo,destination register is always set to 0
 5_26b_diverr,5.26b diverr - Integer division errors,no,,no,,no,,no,,Francesco Rollo,Same as previous test but split in a new file (only division)
 5_26c_diverr,5.26c diverr - Integer division errors,no,,no,,no,,no,,Francesco Rollo,Same as previous test but split in a new file (only modulo)
