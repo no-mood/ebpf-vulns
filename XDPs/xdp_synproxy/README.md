@@ -306,7 +306,7 @@ Calling functions with incorrect arguments, incompatible types, or mismatched pr
 xdp_synproxy_kern.c:449:35: warning: passing arguments to a function without a prototype is deprecated in all versions of C and is not supported in C23 [-Wdeprecated-non-prototype]
 ```
 
-**Exploitable:** **TODO**
+**Exploitable:** **Potentially dangerous** - Function pointer type incompatibility disrupts the calling convention, potentially corrupting registers or stack data when arguments are passed incorrectly. This can lead to unpredictable program behavior or memory corruption.
 
 #### 5_06b_argcomp: Wrong number of arguments
 
@@ -325,7 +325,7 @@ xdp_synproxy_kern.c:444:21: warning: passing arguments to 'network_copy_helper' 
 xdp_synproxy_kern.c:374:6: warning: a function declaration without a prototype is deprecated in all versions of C and is treated as a zero-parameter prototype in C23, conflicting with a subsequent definition [-Wdeprecated-non-prototype]
 ```
 
-**Exploitable:** **TODO**
+**Exploitable:** **Potentially dangerous** - Passing extra arguments can overwrite adjacent stack memory since the function only expects two parameters. The third argument gets pushed onto the stack but has no designated storage, potentially corrupting nearby data structures.
 
 #### 5_06c_argcomp: Variadic function without prototype
 
@@ -345,7 +345,7 @@ xdp_synproxy_kern.c:374:6: warning: a function declaration without a prototype i
 xdp_synproxy_kern.c:453:6: error: conflicting types for 'debug_print_helper'
 ```
 
-**Exploitable:** **TODO**
+**Exploitable:** **Not exploitable** - Compilation fails due to conflicting function declarations, preventing the code from running. No runtime security risk exists since the program cannot be built.
 
 #### 5_06d_argcomp: Wrong argument types
 
@@ -364,7 +364,7 @@ xdp_synproxy_kern.c:445:31: warning: passing arguments to 'helper_function' with
 xdp_synproxy_kern.c:374:6: warning: a function declaration without a prototype is deprecated in all versions of C and is treated as a zero-parameter prototype in C23, conflicting with a subsequent definition [-Wdeprecated-non-prototype]
 ```
 
-**Exploitable:** **TODO**
+**Exploitable:** **Limited** - The int/long type mismatch causes value truncation or sign extension issues, but the impact remains localized to the affected variable without broader memory safety implications.
 
 #### 5_06e_argcomp: BPF helper function with incompatible argument types
 
@@ -379,7 +379,7 @@ xdp_synproxy_kern.c:374:6: warning: a function declaration without a prototype i
 
 **Extra warnings:** None (only base warnings present - compiles successfully)
 
-**Exploitable:** **TODO**
+**Exploitable:** **Not exploitable** - The eBPF verifier detects the invalid map pointer and rejects the program entirely. While this would be extremely dangerous in kernel space, the verification prevents execution.
 
 *Signed-by: Giovanni Nicosia*
 
@@ -418,7 +418,7 @@ Converting pointers to integers and back can lead to undefined behavior if the r
 
 **Extra warnings:** None (only base warnings present - compiles successfully)
 
-**Exploitable:** **TODO**
+**Exploitable:** **Not exploitable** - The verifier recognizes and blocks the pointer arithmetic pattern before program execution. This demonstrates that the security mechanisms effectively prevent this class of attack.
 
 #### 5_10a_exploit_intptrconv: Information disclosure via advanced pointer truncation bypass
 
@@ -447,7 +447,7 @@ Converting pointers to integers and back can lead to undefined behavior if the r
 
 **Extra warnings:** None (only base warnings present - compiles successfully)
 
-**Exploitable:** **TODO**
+**Exploitable:** **Not exploitable** - Converting hardcoded integers to pointers would allow arbitrary memory access in normal programs, but the eBPF verifier catches this pattern and blocks execution entirely.
 
 *Signed-by: Giovanni Nicosia*
 
@@ -730,7 +730,7 @@ When `char` is signed (implementation-defined), converting directly to `int` wit
 
 **Extra warnings:** None (only base warnings present - compiles successfully)
 
-**Exploitable:** **TODO**
+**Exploitable:** **Not exploitable** - While the signed conversion vulnerability is conceptually valid, the verifier prevents unsafe access to TCP payload data, blocking the attack vector before it can cause memory corruption.
 
 #### 5_16b_signconv: Controlled demonstration of signed char conversion vulnerability
 
@@ -743,7 +743,7 @@ When `char` is signed (implementation-defined), converting directly to `int` wit
 
 **Extra warnings:** None (only base warnings present)
 
-**Exploitable:** **TODO**
+**Exploitable:** **Limited** - This controlled demonstration shows how signed conversion can cause logic errors (false EOF detection), but the impact is confined to program logic rather than memory safety violations.
 
 *Signed-by: Giovanni Nicosia*
 
@@ -767,7 +767,7 @@ A switch statement with an enumerated controlling expression that lacks a defaul
 xdp_synproxy_kern.c:509:10: warning: enumeration value 'FIREWALL_REDIRECT' not handled in switch [-Wswitch]
 ```
 
-**Exploitable:** **TODO**
+**Exploitable:** **Potentially dangerous** - The missing FIREWALL_REDIRECT case creates undefined behavior when packets trigger that action. This can result in arbitrary return values, potentially causing legitimate traffic to be dropped or malicious traffic to pass through.
 
 *Signed-by: Giovanni Nicosia*
 
@@ -1235,7 +1235,7 @@ Subtracting or relationally comparing pointers that don't refer to the same arra
 
 **Extra warnings:** None (only base warnings present)
 
-**Exploitable:** **TODO**
+**Exploitable:** **Limited** - Comparing pointers from different objects produces undefined results that may leak memory layout information through comparison outcomes, but cannot directly access unauthorized memory regions.
 
 #### 5_36b_ptrobj: Context pointers vs packet data comparison
 
@@ -1250,7 +1250,7 @@ Subtracting or relationally comparing pointers that don't refer to the same arra
 
 **Extra warnings:** None (only base warnings present)
 
-**Exploitable:** **TODO**
+**Exploitable:** **Limited** - Comparing XDP context pointers with packet data may reveal kernel memory layout relationships, but eBPF's memory protection prevents this from escalating to unauthorized access.
 
 #### 5_36c_ptrobj: Map pointers vs packet data comparison
 
@@ -1265,7 +1265,7 @@ Subtracting or relationally comparing pointers that don't refer to the same arra
 
 **Extra warnings:** None (only base warnings present)
 
-**Exploitable:** **TODO**
+**Exploitable:** **Limited** - Cross-object pointer comparisons may leak information about kernel heap organization, but eBPF's isolation mechanisms prevent exploitation beyond information disclosure.
 
 *Signed-by: Giovanni Nicosia*
 
@@ -1391,7 +1391,7 @@ Using format strings with conversion specifiers that don't match the provided ar
 
 **Extra warnings:** None (only base warnings present)
 
-**Exploitable:** **TODO**
+**Exploitable:** **Limited** - Format string mismatches corrupt logging output and may leak memory addresses through malformed prints, but eBPF's restricted environment prevents escalation to arbitrary memory access.
 
 *Signed-by: Giovanni Nicosia*
 
