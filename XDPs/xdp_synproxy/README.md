@@ -528,6 +528,8 @@ UB from incompatible object or function declarations is caught at compile time, 
 
 Dereferencing pointers derived from potentially tainted input (e.g., packet headers) without validating them can result in undefined behavior, including invalid memory accesses or crashes.
 
+
+#### [5_14_nullref]
 **Implementation Details:**
 - The helper function `null_copy_address()` is introduced to simulate a dereference on an input pointer.
 - A pointer `copy_from` is initialized to `&hdr->ipv4->saddr`, which assumes that `hdr->ipv4` is valid.
@@ -541,11 +543,8 @@ Dereferencing pointers derived from potentially tainted input (e.g., packet head
 
 **Exploitable:** If an attacker can craft a packet that omits or corrupts the IPv4 header, `hdr->ipv4` may resolve to `NULL` or an invalid pointer. In such a case, the dereference of `hdr->ipv4->saddr` would trigger an invalid memory access, which in eBPF could lead to verifier bypasses being overlooked in other contexts, or in non-BPF C code could cause kernel crashes or privilege escalation through controlled faulting behavior.
 
-*Signed-by: Giorgio Fardo*
 
-### [5.14a nullref ]: Dereferencing a possibly null or invalid pointer
-
-Dereferencing pointers that are only conditionally valid (e.g., depending on whether the packet is IPv4 or IPv6) without validating them first can result in undefined behavior, including invalid memory accesses or crashes.
+#### [5_14a_nullref]
 
 **Implementation Details:**
 - The helper function `null_copy_address_v6()` is introduced to simulate dereferencing of an IPv6 field without checking whether `hdr->ipv6` is valid.
@@ -560,11 +559,8 @@ Dereferencing pointers that are only conditionally valid (e.g., depending on whe
 
 **Exploitable:** If an attacker can send IPv4 traffic, `hdr->ipv6` will be `NULL`, and the dereference inside `null_copy_address_v6()` leads to an invalid pointer access. No real escape BPF attack path.
 
-*Signed-by: Giorgio Fardo*
 
-### [5.14b nullref]: Unchecked dereference of map lookup result
-
-Dereferencing pointers returned by helper functions such as `bpf_map_lookup_elem()` without validating them can result in undefined behavior if the lookup fails (i.e., returns `NULL`). This can lead to invalid memory accesses and subtle runtime failures.
+#### [5_14b_nullref]
 
 **Implementation Details:**
 - The helper function `unsafe_values_peek()` is introduced to simulate dereferencing the result of a BPF map lookup without checking for `NULL`.
@@ -586,11 +582,14 @@ processed 122 insns (limit 1000000) max_states_per_insn 0 total_states 9 peak_st
 **Observed Behavior:** The verifier rejects this code due to potential null pointer dereference from map lookup.
 
 **Exploitable:** Not exploitable. The eBPF verifier correctly detects and prevents this null pointer dereference at load time.
+
 *Signed-by: Giorgio Fardo*
 
 ### [5.15 addrescape]: Escaping the address of an automatic object
 
 Automatic (stack-allocated) variables exist only for the lifetime of the function in which they are defined. Returning or storing their address beyond that lifetime results in undefined behavior, as the memory may be overwritten or invalidated.
+
+#### [5_15_addrescape]
 
 **Implementation Details:**
 - The function `set_pointer()` defines a local string `char str[] = "TEst1"`.
@@ -605,11 +604,7 @@ Automatic (stack-allocated) variables exist only for the lifetime of the functio
 
 **Exploitable:** Not really — while this results in a dangling pointer, in eBPF the stack frame is strictly managed and reallocated per packet. The pointer cannot outlive the helper call context, so an attacker cannot reliably control or reuse the memory for malicious purposes beyond producing garbage logs.
 
-*Signed-by: Giorgio Fardo*
-
-### [5.15a addrescape]: Escaping the address of an automatic object
-
-Automatic (stack-allocated) variables exist only for the lifetime of the function in which they are defined. Returning or storing their address beyond that lifetime results in undefined behavior, as the memory may be overwritten or invalidated.
+#### [5_15a_addrescape]
 
 **Implementation Details:**
 - The function `init_array()` defines a local array `int array[5] = { 1, 2, 3, 4, 5 }`.
@@ -631,11 +626,8 @@ xdp_synproxy_kern.c:761:9: warning: address of stack memory associated with loca
 
 **Exploitable:** Not really — while this results in a dangling pointer, in eBPF the stack frame is strictly managed and reallocated per packet. The pointer cannot outlive the helper call context, so an attacker cannot reliably control or reuse the memory for malicious purposes beyond producing garbage logs.
 
-*Signed-off-by: Giorgio Fardo*
 
-### [5.15b addrescape]: Escaping the address of an automatic object
-
-Automatic (stack-allocated) variables exist only for the lifetime of the function in which they are defined. Returning or storing their address beyond that lifetime results in undefined behavior, as the memory may be overwritten or invalidated.
+#### [5_15b_addrescape]
 
 **Implementation Details:**
 - The helper function `squirrel_away()` defines a local string `char fmt[] = "Error: %s\n"`.
@@ -988,6 +980,9 @@ String literals in C are stored in read-only memory. Attempting to modify them r
 **Verifier:** Passed (modification of string literals not checked).
 
 **Exploitable:** Not really — attempts to modify read-only memory holding literals will do nothing in this case. In eBPF, this results in program terminatio rather than memory corruption, so it cannot be weaponized by an attacker.
+
+No extra tests as are pointless.
+
 *Signed-by: Giorgio Fardo*
 
 ### [5.30 intoflow]: Overflowing signed integers
@@ -1005,6 +1000,8 @@ Integer overflow of signed types is undefined behavior in C. While unsigned inte
 **Verifier:** Passed, wrap used.
 
 **Exploitable:** Signed integer overflow in eBPF is not exploitable in practice, since the verifier tracks scalar ranges and arithmetic is defined modulo two’s complement in the JITed code path. At most, it causes incorrect logic branches (e.g., treating a valid sequence number as negative), but does not yield memory safety violations.
+
+No extra tests as **wrap** is always  there no out of bound memory access are possible using overload as overflow is not possible.
 
 *Signed-by: Giorgio Fardo*
 
@@ -1099,6 +1096,8 @@ In the eBPF context only local stack memory is affected, so no arbitrary memory 
 
 Using uninitialized memory results in undefined behavior. It can expose garbage values, leak data, or corrupt program logic depending on the compiler and runtime context.
 
+#### [5_35_unint_mem]
+
 **Implementation Details:**
 - The function `uninitializedRead()` declares a pointer `char *uninit_ptr` without initializing it.
 - It then uses `__builtin_memcpy(buf, uninit_ptr, 64);`, reading from an uninitialized memory location.
@@ -1111,10 +1110,7 @@ Using uninitialized memory results in undefined behavior. It can expose garbage 
 
 **Exploitable:** If the stack slot is not zeroed, uninitialized reads may leak kernel stack data to user space via `bpf_printk`, providing attackers with information disclosure. If zero-initialization happens at runtime, it reduces to benign behavior, but where disclosure occurs, it could aid in bypassing ASLR or building further attacks.
 
-*Signed-by: Giorgio Fardo*
-
-### [5.35a unintref]: Referencing uninitialized automatic variable
-Using an uninitialized automatic (stack) variable leads to undefined behavior. The value of such a variable is indeterminate until explicitly assigned, and reading it may yield garbage, stale stack data, or trigger compiler-dependent optimizations that alter program flow.
+#### [5_35a_unint_mem]
 
 **Implementation Details:**
 - The function `uninitialized_auto_var_read()` declares an integer `int uninit_int;` without initializing it.
@@ -1138,10 +1134,7 @@ xdp_synproxy_kern.c:760:19: note: initialize the variable 'uninit_int' to silenc
 
 **Exploitable:** This pattern risks leaking kernel stack data to user space via `bpf_printk()`, depending on how the verifier and runtime handle uninitialized stack slots. In contexts where stack slots are not cleared, this can expose sensitive information, potentially aiding exploitation strategies such as ASLR bypass or kernel memory disclosure. If the compiler or runtime zero-initializes the stack, the behavior reduces to a benign but misleading test case.
 
-*Signed-by: Giorgio Fardo*
-
-### [5.35b uninitmem]: Expanding and accessing uninitialized packet memory
-This test demonstrates how dynamically adjusting packet size can expose uninitialized memory regions to BPF programs. Reading from these regions introduces undefined behavior and risks leaking kernel data.
+#### [5_35b_unint_mem]
 
 **Implementation Details:**
 - The helper `uninitialized_packet_read()` attempts to grow the packet buffer using `bpf_xdp_adjust_tail(ctx, add_len)`.
@@ -1288,13 +1281,16 @@ xdp_synproxy_kern.c:788:7: warning: passing arguments to a function without a pr
 
 **Exploitable:** Limited — although the call is undefined, in practice the compiler will generate a call instruction with a fixed calling convention. The tainted value may corrupt stack arguments or registers, but within eBPF’s restricted environment the damage is confined and cannot be steered toward arbitrary memory writes. It primarily results in unpredictable logic, not exploitable memory corruption.
 
+No extra tests due to unknown other possible callings.
+
 *Signed-by: Giorgio Fardo*
 
 ### [5.40 taintformatio]: Tainted format string usage in eBPF helpers
 
 Calls to the `sprintf` function that can result in writes outside the bounds of the destinzation array shall be diagnosed when any of its variadic arguments are tainted.
 
-In this case we use the helper `bpf_snprintf`, on the other hand `bpf_trace_printk` cannot be exploited as the arguments are restricted.
+In this case we use the helper `bpf_snprintf`, on the other hand `bpf_trace_printk` cannot be exploited as the arguments are restricted. So no extra tests needed.
+
 **Implementation Details:**
 - A helper function `taintedBufPrint()` reads attacker-controlled values directly from the TCP header:
   - `tainted_value = hdr->tcp->seq;`
@@ -1308,7 +1304,9 @@ In this case we use the helper `bpf_snprintf`, on the other hand `bpf_trace_prin
 - The verifier detects this as **invalid indirect access to stack** and rejects the program (`call bpf_snprintf#165 invalid indirect access to stack`).
 
 **Warnings:** None at compile time.
+
 **Verifier:** **Rejected.** The verifier identifies an unbounded tainted access (`invalid indirect access to stack`).
+
 **Exploitable:** Not exploitable. The verifier fully rejects the program before it can be JITed or run. Unlike user-space format string bugs, this does not result in buffer overflows or memory corruption in kernel/eBPF contexts, but simply prevents the program from loading
 
 *Signed-by: Giorgio Fardo*
