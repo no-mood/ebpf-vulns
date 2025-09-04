@@ -30,17 +30,17 @@ The following ISO-IEC TS 17961-2013 rules are **not applicable** to XDP/eBPF env
 | **5.19** | Failing to detect and handle stdlib errors | Library Functions | Limited standard library support |  |
 | **5.21** | Allocating insufficient memory | Memory Management | No dynamic memory allocation (`malloc`) in eBPF | Giovanni Nicosia |
 | **5.23** | Freeing memory multiple times | Memory Management | No `free()` function available | Giovanni Nicosia |
-| **5.25** | Incorrect use of errno | Discarded | Not particularly relevant to eBPF testing |  |
+| **5.25** | Incorrect use of errno | Discarded | Not particularly relevant to eBPF testing | Giorgio Fardo |
 | **5.27** | Interleaving stream I/O without flush or positioning | File Operations | No buffered stdio operations | Giovanni Nicosia |
-| **5.29** | Modifying getenv/localeconv/etc. return values | Library Functions | No `getenv()` or `setlocale()` functions |  |
+| **5.29** | Modifying getenv/localeconv/etc. return values | Library Functions | No `getenv()` or `setlocale()` functions | Giorgio Fardo |
 | **5.32** | Invalid chars to character-handling functions | Library Functions | Can't import `ctype.h` library (error: failed to load: -13 ), No character-handling functions available in eBPF environment | Giovanni Nicosia |
 | **5.34** | Re/freeing non-dynamically allocated memory | Memory Management | No dynamic memory allocation or `free()` operations | Giovanni Nicosia |
 | **5.37** | Tainted strings are passed to a string copying function | Format String | No `strcpy()` |  |
-| **5.38** | Taking size of pointer to get pointed-to size | Discarded | Not useful for eBPF vulnerability testing scenarios |  |
+| **5.38** | Taking size of pointer to get pointed-to size | Discarded | Not useful for eBPF vulnerability testing scenarios | Giorgio Fardo |
 | **5.41** | Invalid value for fsetpos | File Operations | No file operations available | Giovanni Nicosia |
-| **5.42** | Using object overwritten by getenv/localeconv/etc. | Library Functions | No libc environment functions |  |
+| **5.42** | Using object overwritten by getenv/localeconv/etc. | Library Functions | No libc environment functions | Giorgio Fardo |
 | **5.43** | Char values indistinguishable from EOF | File Operations | No file operations or EOF handling | Giovanni Nicosia |
-| **5.44** | Using reserved identifiers | Discarded | Not relevant for security testing focus |  |
+| **5.44** | Using reserved identifiers | Discarded | Not relevant for security testing focus | Giorgio Fardo  |
 
 **Note**: Rules 5.25, 5.38, and 5.44 are technically applicable to XDP/eBPF but were intentionally discarded as not useful for practical vulnerability testing.
 
