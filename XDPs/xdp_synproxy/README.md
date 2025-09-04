@@ -4,70 +4,9 @@ This directory contains vulnerability patches that implement various ISO-IEC TS 
 
 ## Vulnerability Patches
 
-All vulnerability patches target `xdp_synproxy_kern.c`, an XDP-based SYN proxy implementation taken from the Linux kernel selftests. The `patches/` directory contains vulnerability patches for each applicable rule from ISO-IEC TS 17961-2013:
+All vulnerability patches target `xdp_synproxy_kern.c`, an XDP-based SYN proxy implementation taken from the Linux kernel selftests. The `patches/` directory contains vulnerability patches for each applicable rule from ISO-IEC TS 17961-2013.
 
-| Rule | Directory | Vulnerability Type | Author |
-|------|-----------|--------------------|---------|
-| 5.1 | `5_1_ptrcomp/` | Accessing an object through a pointer to an incompatible type | Gianfranco Trad |
-| 5.1a | `5_01a_ptrcomp/` | Accessing an object through a pointer to an incompatible type | Gianfranco Trad |
-| 5.1b | `5_01b_ptrcomp/` | Accessing an object through a pointer to an incompatible type | Gianfranco Trad |
-| 5.1c | `5_01c_ptrcomp/` | Accessing an object through a pointer to an incompatible type | Gianfranco Trad |
-| 5.4 | `5_4_boolasgn/` | Assignment in conditional expressions | Francesco Rollo |
-| 5.6a | `5_06a_argcomp/` | Function pointer type incompatibility | Giovanni Nicosia |
-| 5.6b | `5_06b_argcomp/` | Wrong number of arguments | Giovanni Nicosia |
-| 5.6c | `5_06c_argcomp/` | Variadic function without prototype | Giovanni Nicosia |
-| 5.6d | `5_06d_argcomp/` | Wrong argument types | Giovanni Nicosia |
-| 5.6e | `5_06e_argcomp/` | BPF helper function with incompatible argument types | Giovanni Nicosia |
-| 5.9 | `5_9_padcomp/` | Comparison of padding data | Francesco Rollo |
-| 5.10a | `5_10a_intptrconv/` | Naive pointer truncation (blocked by verifier) | Giovanni Nicosia |
-| 5.10a_exploit | `5_10a_exploit_intptrconv/` | Information disclosure via pointer truncation bypass | Giovanni Nicosia |
-| 5.10b | `5_10b_intptrconv/` | Hardcoded integer to pointer conversion | Giovanni Nicosia |
-| 5.11 | `5_11_alignconv/` | Converting pointer values to more strictly aligned pointer types | Gianfranco Trad |
-| 5.11b | `5_11a_alignconv/` | Converting pointer values to more strictly aligned pointer types | Gianfranco Trad |
-| 5.11c | `5_11c_alignconv/` | Converting pointer values to more strictly aligned pointer types | Gianfranco Trad |
-| 5.13 | `5_13_objdec/` | Declaring function or object in incompatible ways | Gianfranco Trad |
-| 5.13b | `5_13b_objdec/` | Declaring function or object in incompatible ways | Gianfranco Trad |
-| 5.14 | `5_14_nullref/` | Dereferencing a possibly null or invalid pointer | Giorgio Fardo |
-| 5.14a | `5_14a_nullref/` | Dereferencing a possibly null or invalid pointer | Giorgio Fardo |
-| 5.14b | `5_14b_nullref/` | Dereferencing a possibly null or invalid pointer | Giorgio Fardo |
-| 5.15 | `5_15_addrescape/` | Escaping the address of an automatic object | Giorgio Fardo |
-| 5.15a | `5_15a_addrescape/` | Escaping the address of an automatic object | Giorgio Fardo |
-| 5.15b | `5_15b_addrescape/` | Escaping the address of an automatic object | Giorgio Fardo |
-| 5.16a | `5_16a_signconv/` | Raw version (Direct TCP payload access) | Giovanni Nicosia |
-| 5.16b | `5_16b_signconv/` | Verifier-passing version (Controlled demonstration) | Giovanni Nicosia |
-| 5.17 | `5_17_swtchdflt/` | Switch statement missing default case or incomplete enumeration coverage | Giovanni Nicosia |
-| 5.22 | `5_22_invptr/` | Using out-of-bounds pointers or array subscripts | Gianfranco Trad |
-| 5.22b | `5_22_invptr/` | Using out-of-bounds pointers or array subscripts | Gianfranco Trad |
-| 5.22c | `5_22_invptr/` | Using out-of-bounds pointers or array subscripts | Gianfranco Trad |
-| 5.22d | `5_22_invptr/` | Using out-of-bounds pointers or array subscripts | Gianfranco Trad |
-| 5.22e | `5_22_invptr/` | Using out-of-bounds pointers or array subscripts | Gianfranco Trad |
-| 5.22f | `5_22_invptr/` | Using out-of-bounds pointers or array subscripts | Gianfranco Trad |
-| 5.24a | `5_24a_usrfmt/` | Tainted input in format strings | Gianfranco Trad |
-| 5.24b | `5_24b_usrfmt/` | Tainted input in format strings | Gianfranco Trad |
-| 5.26 | `5_26_diverr/` | Integer division errors | Francesco Rollo |
-| 5.26 | `5_26_diverr_2/` | Integer division errors | Francesco Rollo |
-| 5.26 | `5_26_diverr_3/` | Integer division errors | Francesco Rollo |
-| 5.26 | `5_26_diverr_4/` | Integer division errors | Francesco Rollo |
-| 5.26 | `5_26_diverr_5/` | Integer division errors | Francesco Rollo |
-| 5.28 | `5_28_strmod/` | Modifying string literals | Giorgio Fardo |
-| 5.30 | `5_30_intoflow/` | Overflowing signed integers | Giorgio Fardo |
-| 5.31 | `5_31_nonnullcs/` | Non-null-terminated character sequences | Francesco Rollo |
-| 5.33 | `5_33_restrict/` | Passing pointers into the same object as arguments to different restrict-qualified parameters | Francesco Rollo |
-| 5.35 | `5_35_uninit_mem/` | Referencing uninitialized memory | Giorgio Fardo |
-| 5.35a | `5_35a_uninit_mem/` | Referencing uninitialized memory | Giorgio Fardo |
-| 5.35b | `5_35b_uninit_mem/` | Referencing uninitialized memory | Giorgio Fardo |
-| 5.36a | `5_36a_ptrobj/` | Subtracting or comparing pointers from different array objects - Local Buffer Case | Giovanni Nicosia |
-| 5.36b | `5_36b_ptrobj/` | Subtracting or comparing pointers from different array objects - Context Pointers Case | Giovanni Nicosia |
-| 5.36c | `5_36c_ptrobj/` | Subtracting or comparing pointers from different array objects - Map Pointers Case | Giovanni Nicosia |
-| 5.20a | `5_20a_libptr/` | Forming invalid pointers by library function - __builtin_memcpy with wrong size | Giovanni Nicosia |
-| 5.20b | `5_20b_libptr/` | Forming invalid pointers by library function - BPF helpers with invalid parameters | Giovanni Nicosia |
-| 5.20c | `5_20c_libptr/` | Forming invalid pointers by library function - Packet data access with wrong size | Giovanni Nicosia |
-| 5.39 | `5_39_taintnoproto/` | Using tainted values as function pointers without prototypes | Giorgio Fardo |
-| 5.40 | `5_40_taintformatio` | Tainted value used in formatted I/O | Giorgio Fardo |
-| 5.45 | `5_45_invfmtstr/` | Invalid format strings in formatted I/O functions | Giovanni Nicosia |
-| 5.46_1 | `5_46_taintsink_1/` | Array indexing with tainted value | Francesco Rollo |
-| 5.46_2 | `5_46_taintsink_2/` | Memory copy with tainted length | Francesco Rollo |
-| 5.46_3 | `5_46_taintsink_3/` | Variable Length Arrays with tainted size | Francesco Rollo |
+For a complete overview of all patches including compilation results, verifier status, and exploitability analysis, see **[patches.csv](patches.csv)**.
 
 Each vulnerability rule is implemented as a Git commit patch that modifies the base `xdp_synproxy_kern.c` file. These patches can be:
 - **Applied manually**: Use `git apply` or `git am` to apply individual patches for manual testing
