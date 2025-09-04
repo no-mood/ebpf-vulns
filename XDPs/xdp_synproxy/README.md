@@ -20,38 +20,46 @@ The following ISO-IEC TS 17961-2013 rules are **not applicable** to XDP/eBPF env
 
 | Rule | Title | Category | Reason | Author |
 |------|-------|----------|---------|--------|
-| **5.2** | Accessing freed memory | Memory Management | No `free()` function or dynamic memory allocation | Giovanni Nicosia |
-| **5.3** | Accessing shared objects in signal handlers | Signal Handling | BPF helper `bpf_send_signal()` is present but cannot be used to implement this vulnerability as it sends the signal to the user space and woruld not create the race condition related to  the `err_msg` pointer as described in the PDF. | Giovanni Nicosia |
-| **5.5** | Calling functions from signal handlers except abort, _Exit, signal | Signal Handling | `bpf_send_signal()` cannot take custom handler as an argument. | Giovanni Nicosia |
-| **5.7** | Calling signal from interruptible signal handlers | Signal Handling | No custom signal handler possible | Giovanni Nicosia |
-| **5.8** | Calling system | Library Functions | No `system()` function available | Giovanni Nicosia |
-| **5.12** | Copying a FILE object | File Operations | No file structures or FILE type available | Giovanni Nicosia |
-| **5.18** | Failing to close files or free memory | Memory Management | No `malloc()` or file close operations available | Giovanni Nicosia |
-| **5.19** | Failing to detect and handle stdlib errors | Library Functions | Limited standard library support |  |
-| **5.21** | Allocating insufficient memory | Memory Management | No dynamic memory allocation (`malloc`) in eBPF | Giovanni Nicosia |
-| **5.23** | Freeing memory multiple times | Memory Management | No `free()` function available | Giovanni Nicosia |
-| **5.25** | Incorrect use of errno | Discarded | Not particularly relevant to eBPF testing | Giorgio Fardo |
-| **5.27** | Interleaving stream I/O without flush or positioning | File Operations | No buffered stdio operations | Giovanni Nicosia |
-| **5.29** | Modifying getenv/localeconv/etc. return values | Library Functions | No `getenv()` or `setlocale()` functions | Giorgio Fardo |
-| **5.32** | Invalid chars to character-handling functions | Library Functions | Can't import `ctype.h` library (error: failed to load: -13 ), No character-handling functions available in eBPF environment | Giovanni Nicosia |
-| **5.34** | Re/freeing non-dynamically allocated memory | Memory Management | No dynamic memory allocation or `free()` operations | Giovanni Nicosia |
-| **5.37** | Tainted strings are passed to a string copying function | Format String | No `strcpy()` |  |
-| **5.38** | Taking size of pointer to get pointed-to size | Discarded | Not useful for eBPF vulnerability testing scenarios | Giorgio Fardo |
-| **5.41** | Invalid value for fsetpos | File Operations | No file operations available | Giovanni Nicosia |
-| **5.42** | Using object overwritten by getenv/localeconv/etc. | Library Functions | No libc environment functions | Giorgio Fardo |
-| **5.43** | Char values indistinguishable from EOF | File Operations | No file operations or EOF handling | Giovanni Nicosia |
-| **5.44** | Using reserved identifiers | Discarded | Not relevant for security testing focus | Giorgio Fardo  |
+| **5.2** | Accessing freed memory | Memory Management | No `free()` function or dynamic memory allocation | @all |
+| **5.3** | Accessing shared objects in signal handlers | Signal Handling | BPF helper `bpf_send_signal()` is present but cannot be used to implement this vulnerability as it sends the signal to the user space and woruld not create the race condition related to  the `err_msg` pointer as described in the PDF. | @all |
+| **5.5** | Calling functions from signal handlers except abort, _Exit, signal | Signal Handling | `bpf_send_signal()` cannot take custom handler as an argument. | @all |
+| **5.7** | Calling signal from interruptible signal handlers | Signal Handling | No custom signal handler possible | @all |
+| **5.8** | Calling system | Library Functions | No `system()` function available | @all |
+| **5.12** | Copying a FILE object | File Operations | No file structures or FILE type available | @all |
+| **5.18** | Failing to close files or free memory | Memory Management | No `malloc()` or file close operations available | @all |
+| **5.19** | Failing to detect and handle stdlib errors | Library Functions | Limited standard library support | @all |
+| **5.21** | Allocating insufficient memory | Memory Management | No dynamic memory allocation (`malloc`) in eBPF | @all |
+| **5.23** | Freeing memory multiple times | Memory Management | No `free()` function available | @all |
+| **5.25** | Incorrect use of errno | Discarded | Not particularly relevant to eBPF testing | @all |
+| **5.27** | Interleaving stream I/O without flush or positioning | File Operations | No buffered stdio operations | @all |
+| **5.29** | Modifying getenv/localeconv/etc. return values | Library Functions | No `getenv()` or `setlocale()` functions | @all |
+| **5.32** | Invalid chars to character-handling functions | Library Functions | Can't import `ctype.h` library (error: failed to load: -13 ), No character-handling functions available in eBPF environment | @all |
+| **5.34** | Re/freeing non-dynamically allocated memory | Memory Management | No dynamic memory allocation or `free()` operations | @all |
+| **5.37** | Tainted strings are passed to a string copying function | Format String | No `strcpy()` | @all |
+| **5.38** | Taking size of pointer to get pointed-to size | Discarded | Not useful for eBPF vulnerability testing scenarios | @all |
+| **5.41** | Invalid value for fsetpos | File Operations | No file operations available | @all |
+| **5.42** | Using object overwritten by getenv/localeconv/etc. | Library Functions | No libc environment functions | @all |
+| **5.43** | Char values indistinguishable from EOF | File Operations | No file operations or EOF handling | @all |
+| **5.44** | Using reserved identifiers | Discarded | Not relevant for security testing focus | @all |
 
-**Note**: Rules 5.25, 5.38, and 5.44 are technically applicable to XDP/eBPF but were intentionally discarded as not useful for practical vulnerability testing.
+#### Warning
+Rules 5.25, 5.38, and 5.44 are technically applicable to XDP/eBPF but were intentionally discarded as not useful for practical vulnerability testing.
 
 **Rule 5.25**
 Rule 5.25 addresses the correct use of errno when interacting with Standard C Library functions. In the XDP/eBPF context, this rule is not relevant for security testing because eBPF programs do not link against the C standard library and do not rely on errno for error signaling. Instead, BPF helpers communicate errors via explicit return values. Misuse of errno cannot occur in this environment and therefore does not introduce security risks. For the security of eBPF/XDP code, this rule can be considered not applicable.
 
-**Rule 5.38**
-While this rule is useful for preventing functional bugs in standard C code, it is not relevant for eBPF/XDP vulnerability testing. eBPF programs array bounds must be explicitly tracked, and pointer size misuse does not introduce exploitable security vulnerabilities. At worst, such code leads to logical errors rather than security issues. Therefore, this rule can be considered not useful in a security review.
+(Signed-by: Giorgio Fardo, Francesco Rollo)
 
-**Rule 5.44** is about avoiding the use of reserved identifiers (like errno, or identifiers starting with _ followed by uppercase) to ensure portability and prevent undefined behavior in standard C environments.
+**Rule 5.38**
+While 5.38 rule is useful for preventing functional bugs in standard C code, it is not relevant for eBPF/XDP vulnerability testing. eBPF programs array bounds must be explicitly tracked, and pointer size misuse does not introduce exploitable security vulnerabilities. At worst, such code leads to logical errors rather than security issues. Therefore, this rule can be considered not useful in a security review.
+
+(Signed-by: Giorgio Fardo, Francesco Rollo)
+
+**Rule 5.44** 
+Rule 5.44 is about avoiding the use of reserved identifiers (like errno, or identifiers starting with _ followed by uppercase) to ensure portability and prevent undefined behavior in standard C environments.
 In the context of XDP/eBPF, this rule has little relevance for security testing because eBPF programs operate in a restricted environment without the C standard library, and reserved identifier clashes cannot lead to security vulnerabilities. At worst, such violations cause compilation issues, not exploitable conditions.
+
+(Signed-by: Giorgio Fardo, Francesco Rollo)
 
 These exclusions reflect the constrained execution environment of eBPF programs, which operate in kernel space with:
 - No dynamic memory allocation
@@ -164,7 +172,7 @@ All three UB injections compile and pass the eBPF verifier since they remain wit
 
 Frequent mistake in C/C++ is typing `if (x = y)` instead of `if (x == y)`. The assignment expression `(x = y)` evaluates to the value assigned to `x`. If `y` is non-zero, the condition is always true, regardless of `x`'s initial value. This can lead to bugs where code branches are taken unexpectedly or loops become infinite.
 
-#### Example 1
+#### [5_4a_boolasgn]
 
 **Implementation Details:**
 - The patch introduces a `while` loop with a direct assignment in its conditional: `while (processed_len = current_tcp_len) { ... }`. The purpose is to emulate a potential mistake in the while condition for processing a TCP header.
@@ -173,7 +181,7 @@ Frequent mistake in C/C++ is typing `if (x = y)` instead of `if (x == y)`. The a
 
 The eBPF verifier, through its static analysis of register states and control flow, will correctly identify this `while` loop as an **infinite loop**. As a result, the eBPF verifier will reject the program load.
 
-**Verifier:** Not passed (infinite loop detected).
+**Verifier:** Not passed (`infinite loop detected`).
 
 **Extra warnings**:
 
@@ -193,7 +201,7 @@ xdp_synproxy_kern.c:631:27: note: use '==' to turn this assignment into an equal
 
 **Exploitable:** Not possible.
 
-#### Example 2
+#### [5_4b_boolasgn]
 
 **Implementation Details:**
 - This version introduces a `do ... while` loop with a direct assignment in its conditional:
@@ -203,7 +211,7 @@ xdp_synproxy_kern.c:631:27: note: use '==' to turn this assignment into an equal
 
 The eBPF verifier, through its static analysis of register states and control flow, will correctly identify this `do..while` loop as an **infinite loop**. As a result, the eBPF verifier will reject the program load.
 
-**Verifier:** Not passed (infinite loop detected).
+**Verifier:** Not passed (`infinite loop detected`).
 
 **Extra warnings**:
 
@@ -337,9 +345,13 @@ If two instances of an identical-looking struct have their data fields set to th
 
 **Verifier:** Passed.
 
+**Warnings:** No extra.
+
 **Exploitable**: The issue only affects stack padding bytes within the local `padded_config_data` struct. Even though memcmp may behave non-deterministically due to uninitialized padding, this does not expose arbitrary memory outside the eBPF program’s stack. The “exploitation” is limited to logic non-determinism inside the program (e.g., occasional XDP_DROP), not a security vulnerability.
 
-*Signed-by: Francesco Rollo*
+**Note:** *Additional tests for this rule would produce the same result as long as the struct layout remains controlled and the padding bytes are left uninitialized. Writing more tests for this case would be redundant, as the behavior is deterministic with respect to how padding is treated by the compiler and initialization method.*
+
+Signed-by: Francesco Rollo*
 
 ### [5.10 intptrconv]: Converting a pointer type to an integer type or integer type to a pointer type
 
@@ -908,7 +920,7 @@ In standard C, division by zero and modulo by zero result in **undefined behavio
 
 The eBPF verifier is extremely **strict** about preventing undefined behavior and ensuring program safety. It performs static analysis to determine the possible range of values for any register that might be used as a divisor.
 
-#### Example 1-2-3
+#### [5_26a_diverr] [5_26b_diverr] [5_26c_diverr]
 **Implementation Details:**
 - The value of `hdr->tcp->ack_seq` is extracted from the incoming TCP header and assigned to `tainted_divisor_val`. `ack_seq` is chosen because, in a TCP header, it can legitimately carry a value of zero, making it a suitable "tainted" variable that could cause a division-by-zero.
 - A constant `numerator_val` is defined as `100`.
@@ -922,9 +934,11 @@ Why this approach? If the verifier statically determines that a divisor *could* 
 
 **Verifier:** Passed (but not an issue at runtime).
 
+**Warnings:** No extra.
+
 **Explotable:** Not possible.
 
-#### Example 4
+#### [5_26d_diverr]
 
 **Implementation Details:**
 
@@ -942,9 +956,11 @@ Standard C does not define the behavior for `INT_MIN / -1`. The result is theore
 
 **Verifier:** Passed.
 
+**Warnings:** No extra.
+
 **Exploitable**: Not possible. The eBPF runtime returns 0 in practice, and the operation cannot be leveraged for arbitrary memory access.
 
-#### Example 5
+#### [5_26e_diverr]
 
 **Implementation Details:**
 
@@ -960,6 +976,8 @@ Standard C does not define the behavior for `INT_MIN / -1`. The result is theore
 In C, the modulo requires the result to fit within the signed integer range. For `INT_MIN % -1`, the standard does not define a value.
 
 **Verifier:** Passed
+
+**Warnings:** No extra.
 
 **Exploitabile**: Not possible. The eBPF runtime produces 0 as the result, so this cannot be used to read or write memory.
 
@@ -1011,7 +1029,7 @@ A C string is a sequence of characters terminated by a null character (`\0`). Fo
 
 If a character array passed to such a function is *not* null-terminated within its allocated bounds, the function will continue reading past the end of the intended buffer.This constitutes an **out-of-bounds read**, leading to UB and potentially sensitive information leakage.
 
-#### Example 1
+#### [5_31a_nonnullcs]
 
 **Implementation Details:**
 - A struct `test_memory_layout` is declared on the stack within `syncookie_handle_syn`. This struct is specifically designed to control the memory layout, ensuring the data is stored contiguously. This is important because the Verifier may place guards between individual stack variables.
@@ -1025,9 +1043,11 @@ If a character array passed to such a function is *not* null-terminated within i
 
 **Verifier**: Passed (Under controlled memory layout).
 
+**Warnings:** No extra.
+
 **Exploitable**: Not really in practice. It depends on what type of information is disclosed in the controlled memory layout.
 
-#### Example 2
+#### [5_31b_nonnullcs]
 
 **Implementation Details**
 - A small character array (e.g., char bad_str[3] = {'a', 'b', 'c'}) is allocated on the stack inside `syncookie_handle_syn`.
@@ -1036,6 +1056,8 @@ If a character array passed to such a function is *not* null-terminated within i
 - Since no terminator exists in the array, bpf_printk should keep reading into adjacent stack memory until a zero byte happens to be found.
 
 **Verifier**: Passed.
+
+**Warnings:** No extra.
 
 **Exploitable**: Not really in practice. At worst, you might accidentally log adjacent stack contents, which is a form of information disclosure but is limited to what the eBPF program itself already has access to.
 The Verifier prevents the program to read adjacent memory content as it always zero initialize each stack frame.
@@ -1048,7 +1070,7 @@ The `restrict` keyword is a promise to the compiler that a pointer is the sole m
 
 When the `restrict` rule is broken, the compiler is free to perform aggressive optimizations based on the false assumption of non-aliasing. This can lead to **undefined and dangerous runtime behavior**, such as **superseded data reads**. The compiler might cache a value from memory and then reuse that cached value even after the memory has been modified by an aliasing `restrict` pointer, leading to incorrect program logic.
 
-#### Example 1
+#### [5_33a_restrict]
 
 **Implementation Details:**
 - A new helper function, `simulate_restrict_ub` takes two `char *restrict` pointers (`read_ptr_base`, `write_ptr_base`) and a new value.
@@ -1067,9 +1089,11 @@ By targeting `hdr->tcp->seq`, a legitimate SYN packet, which should have led to 
 
 **Verifier**: Passed.
 
+**Warnings:** No extra.
+
 **Exploitable**: Not in a security sense. Only causes **logic/data corruption** in local eBPF stack memory, since the memory is fully controlled by the program.
 
-#### Example 2
+#### [5_33b_restrict]
 
 **Implementation Details**
 - A local stack buffer `tcp_options[16]` is declared inside `syncookie_handle_syn`.
@@ -1087,6 +1111,8 @@ By targeting `hdr->tcp->seq`, a legitimate SYN packet, which should have led to 
 In the eBPF context only local stack memory is affected, so no arbitrary memory read/write occurs. The corruption is limited to the `tcp_options` buffer used for demonstration.
 
 **Verifier:** Passed.
+
+**Warnings:** No extra.
 
 **Exploitable:** Not in a security sense. It only causes local stack data corruption.
 
@@ -1340,7 +1366,7 @@ In the context of **xdp_synproxy** using data received from external source, can
 
 This scenario is illustrated by two examples, each demonstrating different behaviors of the verifier. In the first case, the verifier **correctly rejects** the program. In the second case, however, it allows the program to pass and **permits an out-of-bounds write** under certain conditions that go undetected.
 
-#### Example 1
+#### [5_46a_taintsink]
 
 **Implementation Details:**
 - A small `char` array `policy_flags[32]` is declared on the stack. Its size is intentionally limited to `32` bytes to make it highly susceptible to out-of-bounds access by typical network values.
@@ -1349,11 +1375,16 @@ This scenario is illustrated by two examples, each demonstrating different behav
 
 In this particular case the eBPF verifier performs a correct memory validation. Since `tainted_dest_port` can clearly exceed the array's bounds, and there is no bounds checking, the verifier will detect a potential out-of-bounds memory read. As a result, the verifier will reject the eBPF program load.
 
-**Verifier:** Not passed.
+**Verifier:** Not passed: 
+```
+math between fp pointer and register with unbounded min value is not allowed
+```
+
+**Warnings:** No extra.
 
 **Exploitable:** Not possible.
 
-#### Example 2
+#### [5_46b_taintsink]
 
 **Implementation Details:**
 - The function `print_field` is added as a helper to visually dump the contents of byte arrays for debugging the memory state.
@@ -1368,11 +1399,13 @@ Under this specific condition, the verifier allows the eBPF program to load, eve
 
 **Verifier:** Passed.
 
+**Warnings:** No extra.
+
 **Exploitable:**
 - Memory safety exploitation (kernel R/W): No, not possible.
 - Logic exploitation (attacker-controlled packet alteration): Yes, possible.
 
-#### Example 3
+#### [5_46c_taintsink]
 
 **Implementation Details**
 
@@ -1380,7 +1413,13 @@ Under this specific condition, the verifier allows the eBPF program to load, eve
 - The line `char vla_buffer[tainted_vla_size]` attempts to declare a Variable Length Array `vla_buffer` using this runtime-determined size.
 - This program **will not pass verification**, regardless of the taintedness of `tainted_vla_size`. The eBPF verifier, as mentioned in the previous example, prohibits VLAs. The compilation succeeds, but the attempt to load such a BPF program into the kernel will result in a clear rejection message from the verifier.
 
-**Verifier:** Not passed.
+**Verifier:** Not passed:
+
+```
+Address R11 is invalid (result of VLA attempt)
+```
+
+**Warnings:** No extra.
 
 **Exploitable:** Not possible.
 
