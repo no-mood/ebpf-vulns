@@ -290,9 +290,7 @@ xdp_synproxy_kern.c:626:25: note: use '==' to turn this assignment into an equal
 
 Calling functions with incorrect arguments, incompatible types, or mismatched prototypes leads to undefined behavior. This commonly occurs in multi-file projects where function declarations and definitions don't match.
 
-#### Example a: Function pointer type incompatibility
-
-Function pointers must be called with signatures compatible with their declared type. Using incompatible function pointer types leads to undefined behavior due to mismatched calling conventions and argument handling.
+#### 5_06a_argcomp
 
 **Implementation Details:**
 - A function pointer `fp_wrong_type` is declared with signature `__u16 ()()` (no arguments, returns `__u16`).
@@ -303,9 +301,11 @@ Function pointers must be called with signatures compatible with their declared 
 
 **Verifier:** Passed (compiles with warnings, but type incompatibility remains).
 
-#### Example b: Wrong argument count
+**Extra warnings:** **TODO**
 
-Calling a function with a different number of arguments than defined in its prototype results in undefined behavior, especially when the caller lacks the correct function prototype in scope.
+**Exploitable:** **TODO**
+
+#### 5_06b_argcomp
 
 **Implementation Details:**
 - Forward declaration `network_copy_helper()` is made without parameters to simulate separate compilation units.
@@ -316,9 +316,11 @@ Calling a function with a different number of arguments than defined in its prot
 
 **Verifier:** Passed (function call succeeds but with undefined argument handling).
 
-#### Example c: Variadic function without prototype
+**Extra warnings:** **TODO**
 
-Calling variadic functions (like printf-style functions) without proper prototypes in scope can lead to incorrect argument passing and undefined behavior.
+**Exploitable:** **TODO**
+
+#### 5_06c_argcomp
 
 **Implementation Details:**
 - Forward declaration `debug_print_helper()` is made without parameters, hiding its variadic nature.
@@ -329,9 +331,11 @@ Calling variadic functions (like printf-style functions) without proper prototyp
 
 **Verifier:** Not passed (compilation fails due to conflicting function prototypes).
 
-#### Example d: Wrong argument types
+**Extra warnings:** **TODO**
 
-Calling functions with arguments of incompatible types leads to undefined behavior when the calling convention expects different data sizes or representations.
+**Exploitable:** **TODO**
+
+#### 5_06d_argcomp
 
 **Implementation Details:**
 - Forward declaration `helper_function()` is made without parameters to simulate cross-file compilation.
@@ -342,9 +346,11 @@ Calling functions with arguments of incompatible types leads to undefined behavi
 
 **Verifier:** Passed (function call succeeds but with potential data truncation/extension issues).
 
-#### Example e: BPF helper function with incompatible argument types
+**Extra warnings:** **TODO**
 
-Calling BPF helper functions with incompatible argument types is especially dangerous as these functions execute in kernel space with elevated privileges.
+**Exploitable:** **TODO**
+
+#### 5_06e_argcomp
 
 **Implementation Details:**
 - `bpf_map_lookup_elem()` expects `(void *map, const void *key)` with a valid map pointer.
@@ -354,6 +360,10 @@ Calling BPF helper functions with incompatible argument types is especially dang
 - More dangerous than regular function calls because BPF helpers operate in kernel space where invalid pointers can cause immediate kernel panic.
 
 **Verifier:** Failed (should reject program with invalid map pointer).
+
+**Extra warnings:** **TODO**
+
+**Exploitable:** **TODO**
 
 *Signed-by: Giovanni Nicosia*
 
@@ -380,7 +390,7 @@ If two instances of an identical-looking struct have their data fields set to th
 
 Converting pointers to integers and back can lead to undefined behavior if the resulting pointer is incorrectly aligned, doesn't point to an entity of the referenced type, or creates invalid memory references. This is particularly dangerous in eBPF where pointer arithmetic is strictly controlled by the verifier.
 
-#### Example a: Naive pointer truncation approach (blocked by verifier)
+#### 5_10a_intptrconv
 
 **Implementation Details:**
 - Demonstrates the straightforward but naive approach to pointer-to-integer conversion and arithmetic.
@@ -390,7 +400,11 @@ Converting pointers to integers and back can lead to undefined behavior if the r
 
 **Verifier:** Failed (correctly blocks unsafe pointer arithmetic).
 
-#### Example a_exploit: Information disclosure via advanced pointer truncation analysis
+**Extra warnings:** **TODO**
+
+**Exploitable:** **TODO**
+
+#### 5_10a_exploit_intptrconv
 
 **Implementation Details:**
 - Comprehensive exploit research demonstrating real information disclosure through pointer truncation.
@@ -401,7 +415,11 @@ Converting pointers to integers and back can lead to undefined behavior if the r
 
 **Verifier:** Passed (successful information disclosure exploit through verifier bypass).
 
-#### Example b: Hardcoded integer to pointer conversion
+**Extra warnings:** **TODO**
+
+**Exploitable:** Yes, critical information disclosure vulnerability that bypasses verifier protections and can leak kernel memory contents.
+
+#### 5_10b_intptrconv
 
 **Implementation Details:**
 - Direct conversion of hardcoded integer `0xDEADBEEF` to pointer (`magic_ptr = (void *)MAGIC_ADDR`).
@@ -410,6 +428,10 @@ Converting pointers to integers and back can lead to undefined behavior if the r
 - Attempts bounds-checked memory access with the invalid pointer.
 
 **Verifier:** Failed (rejects program due to invalid pointer usage).
+
+**Extra warnings:** **TODO**
+
+**Exploitable:** **TODO**
 
 *Signed-by: Giovanni Nicosia*
 
@@ -680,7 +702,7 @@ Automatic (stack-allocated) variables exist only for the lifetime of the functio
 
 When `char` is signed (implementation-defined), converting directly to `int` without first casting to `unsigned char` can cause 0xFF bytes to be sign-extended to -1 (EOF), leading to false positives in EOF checks.
 
-#### Example a: Raw Version (Direct TCP payload access)
+#### 5_16a_signconv
 
 **Implementation Details:**
 - Directly accesses TCP payload data (`char *tcp_payload = (char *)hdr->tcp + (hdr->tcp->doff * 4)`) without proper bounds checking.
@@ -690,7 +712,11 @@ When `char` is signed (implementation-defined), converting directly to `int` wit
 
 **Verifier:** Not passed (unsafe memory access).
 
-#### Example b: Verifier-Passing Version (Controlled demonstration)
+**Extra warnings:** **TODO**
+
+**Exploitable:** **TODO**
+
+#### 5_16b_signconv
 
 **Implementation Details:**
 - Uses controlled test data (`char test_data[4] = {0x41, 0x42, 0xFF, 0x44}`) to demonstrate the same vulnerability while passing verifier checks.
@@ -699,11 +725,17 @@ When `char` is signed (implementation-defined), converting directly to `int` wit
 
 **Verifier:** Passed (controlled demonstration).
 
+**Extra warnings:** **TODO**
+
+**Exploitable:** **TODO**
+
 *Signed-by: Giovanni Nicosia*
 
 ### [5.17 swtchdflt]: Switch statement missing default case or incomplete enumeration coverage
 
 A switch statement with an enumerated controlling expression that lacks a default case and doesn't handle all enumeration constants can lead to undefined behavior when unhandled values are encountered.
+
+#### 5_17_swtchdflt
 
 **Implementation Details:**
 - Defines a `firewall_action` enum with four values: `FIREWALL_ALLOW`, `FIREWALL_BLOCK`, `FIREWALL_REDIRECT`, and `FIREWALL_LOG`.
@@ -713,6 +745,10 @@ A switch statement with an enumerated controlling expression that lacks a defaul
 - Demonstrates how incomplete switch coverage can lead to security policy violations in real network filtering scenarios.
 
 **Verifier:** Passed (but causes undefined behavior on missing cases).
+
+**Extra warnings:** **TODO**
+
+**Exploitable:** **TODO**
 
 *Signed-by: Giovanni Nicosia*
 
@@ -1167,9 +1203,7 @@ This test demonstrates how dynamically adjusting packet size can expose uninitia
 
 Subtracting or relationally comparing pointers that don't refer to the same array object results in undefined behavior. This commonly occurs when accidentally mixing pointers from different memory regions in packet processing scenarios.
 
-#### Example a: Local Buffer vs Packet Data
-
-Comparing and performing arithmetic between packet data pointers and local stack buffers represents the most basic violation of pointer object rules, where two completely unrelated memory objects are treated as if they were part of the same array.
+#### 5_36a_ptrobj
 
 **Implementation Details:**
 - Creates two distinct objects: packet data from the network (Object 1) and a local stack buffer (Object 2).
@@ -1178,11 +1212,13 @@ Comparing and performing arithmetic between packet data pointers and local stack
 - Shows relational comparisons (`>`, `<`) that have no defined meaning since pointers reference unrelated memory regions.
 - Uses undefined results in program logic, demonstrating how violations lead to unpredictable behavior.
 
+**Verifier:** Passed (but produces undefined results that may leak memory layout information).
 
+**Extra warnings:** **TODO**
 
-#### Example b: Context Pointers vs Packet Data
+**Exploitable:** **TODO**
 
-XDP context structure pointers and packet data pointers represent different memory objects that should not be compared or subtracted, as they reside in completely separate memory regions managed by different kernel subsystems.
+#### 5_36b_ptrobj
 
 **Implementation Details:**
 - Focuses on violations between XDP context structure pointers and packet data pointers.
@@ -1193,9 +1229,11 @@ XDP context structure pointers and packet data pointers represent different memo
 
 **Verifier:** Passed (but produces undefined results that may leak memory layout information).
 
-#### Example c: Map Pointers vs Packet Data
+**Extra warnings:** **TODO**
 
-eBPF map value pointers (heap objects) and packet data pointers represent fundamentally different memory objects, where map values reside in kernel heap space while packet data exists in network buffer memory.
+**Exploitable:** **TODO**
+
+#### 5_36c_ptrobj
 
 **Implementation Details:**
 - Targets violations between eBPF map value pointers (heap objects) and packet data.
@@ -1206,15 +1244,17 @@ eBPF map value pointers (heap objects) and packet data pointers represent fundam
 
 **Verifier:** Passed (but produces undefined results that may leak memory layout information).
 
+**Extra warnings:** **TODO**
+
+**Exploitable:** **TODO**
+
 *Signed-by: Giovanni Nicosia*
 
 ### [5.20 libptr]: Forming invalid pointers by library function
 
 Invoking a function with arguments that cause it to form pointers that do not point into or just past the end of an object violates Rule 5.20. While eBPF doesn't have access to standard C library functions, it still uses memory manipulation functions like `__builtin_memcpy` and BPF helpers that can form invalid pointers through incorrect size calculations.
 
-#### Example a: Invalid __builtin_memcpy with oversized buffer copy
-
-This example demonstrates Rule 5.20 violation using `__builtin_memcpy` with incorrect size parameters that cause the function to access beyond allocated object boundaries.
+#### 5_20a_libptr
 
 **Implementation Details:**
 - Allocates a 16-byte buffer but attempts to copy 24 bytes using `__builtin_memcpy`
@@ -1225,11 +1265,11 @@ This example demonstrates Rule 5.20 violation using `__builtin_memcpy` with inco
 
 **Verifier:** **Passed** - The eBPF verifier does not detect this buffer overflow, allowing the violation to execute
 
+**Extra warnings:** **TODO**
+
 **Exploitable:** **Potentially dangerous** - Buffer overflow of 8 bytes can corrupt stack variables adjacent to the buffer, potentially causing program crashes or memory corruption
 
-#### Example b: Invalid BPF helper usage with wrong parameters
-
-This example shows Rule 5.20 violations using BPF helper functions with incorrect size parameters that cause invalid pointer formation during memory operations.
+#### 5_20b_libptr
 
 **Implementation Details:**
 - Uses `bpf_probe_read_kernel` with size parameter (32 bytes) larger than destination buffer (12 bytes)
@@ -1240,11 +1280,11 @@ This example shows Rule 5.20 violations using BPF helper functions with incorrec
 
 **Verifier:** **Rejected** - The eBPF verifier blocks this pattern, detecting the invalid buffer size parameter
 
+**Extra warnings:** **TODO**
+
 **Exploitable:** **Not exploitable** - The verifier prevents this violation from executing, demonstrating better protection for BPF helpers compared to `__builtin_memcpy`
 
-#### Example c: Packet data access with wrong size calculations
-
-This example demonstrates Rule 5.20 violations when accessing packet data with incorrect size calculations that cause memory operations to exceed buffer boundaries.
+#### 5_20c_libptr
 
 **Implementation Details:**
 - Performs size calculations using wrong data types (e.g., `sizeof(int) * 8 = 32` instead of `sizeof(char) * 8 = 8`)
@@ -1254,6 +1294,8 @@ This example demonstrates Rule 5.20 violations when accessing packet data with i
 - Based on Rule 5.20 Example 2: sizeof(int) vs sizeof(float) type confusion
 
 **Verifier:** **Passed** - The verifier does not detect type confusion in size calculations, allowing the buffer overflow
+
+**Extra warnings:** **TODO**
 
 **Exploitable:** **Dangerous** - Type confusion causing 12-byte buffer overflow may corrupt adjacent stack memory, leading to program instability or information leakage
 
@@ -1310,6 +1352,7 @@ In this case we use the helper `bpf_snprintf`, on the other hand `bpf_trace_prin
 ### [5.45 invfmtstr]: Invalid format strings in formatted I/O functions
 
 Using format strings with conversion specifiers that don't match the provided arguments, invalid flag combinations, or incorrect argument counts leads to undefined behavior and potentially exploitable vulnerabilities.
+#### 5_45_invfmtstr
 
 **Implementation Details:**
 - **Type Mismatch (UB 160):** `bpf_printk("Parsing packet at offset %s\n", (long)data)` - %s expects string but receives integer, resulting in empty/garbage output.
@@ -1319,6 +1362,10 @@ Using format strings with conversion specifiers that don't match the provided ar
 - These violations don't cause verifier rejection but result in corrupted logging output, potentially hiding security events or leaking memory addresses through malformed prints.
 
 **Verifier:** Passed (format string errors not detected by verifier, manifest at runtime).
+
+**Extra warnings:** **TODO**
+
+**Exploitable:** **TODO**
 
 *Signed-by: Giovanni Nicosia*
 
