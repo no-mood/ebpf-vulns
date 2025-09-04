@@ -1,19 +1,64 @@
 Test case id,Violated Rule,Compiler errors (yes/no),Compiler error details,Extra compiler warnings (yes/no),Extra compiler warnings details,eBPF verifier errors (yes/no),eBPF verifier error details,Exploitable (yes/no),Exploitability details,Author,Notes
+5_1_ptrcomp,5.1 ptrcomp - Accessing an object through a pointer to an incompatible type,,,,,,,,,Gianfranco Trad,
+5_01a_ptrcomp,5.1a ptrcomp - Accessing an object through a pointer to an incompatible type,,,,,,,,,Gianfranco Trad,
+5_01b_ptrcomp,5.1b ptrcomp - Accessing an object through a pointer to an incompatible type,,,,,,,,,Gianfranco Trad,
+5_01c_ptrcomp,5.1c ptrcomp - Accessing an object through a pointer to an incompatible type,,,,,,,,,Gianfranco Trad,
+5_4_boolasgn,5.4 boolasgn - Assignment in conditional expressions,,,,,,,,,Francesco Rollo,
+5_4_boolasgn_2,5.4 boolasgn - Assignment in conditional expressions,,,,,,,,,Francesco Rollo,
 5_06a_argcomp,5.6 argcomp - Function pointer type incompatibility,no,,yes,passing arguments to a function without a prototype is deprecated [-Wdeprecated-non-prototype],no,,yes,Function pointer type incompatibility disrupts calling convention potentially corrupting registers or stack data,Giovanni Nicosia,Demonstrates UB 26 - pointer used to call function with incompatible type
 5_06b_argcomp,5.6 argcomp - Wrong number of arguments,no,,yes,passing arguments without prototype and conflicting function declaration [-Wdeprecated-non-prototype],no,,yes,Extra arguments can overwrite adjacent stack memory beyond expected parameters,Giovanni Nicosia,Simulates separate compilation unit scenario with prototype mismatch
 5_06c_argcomp,5.6 argcomp - Variadic function without prototype,yes,conflicting types for 'debug_print_helper',yes,passing arguments without prototype and conflicting function declaration,no,,no,Compilation fails preventing runtime execution,Giovanni Nicosia,Demonstrates UB 39 - variadic function called without proper prototype
 5_06d_argcomp,5.6 argcomp - Wrong argument types,no,,yes,passing arguments without prototype and conflicting function declaration [-Wdeprecated-non-prototype],no,,limited,Int/long type mismatch causes value truncation but impact remains localized,Giovanni Nicosia,Cross-file compilation scenario with type assumptions
 5_06e_argcomp,5.6 argcomp - BPF helper with incompatible arguments,no,,no,,yes,invalid map pointer causes program rejection,no,Verifier detects invalid map pointer and prevents execution,Giovanni Nicosia,More dangerous than regular functions due to kernel space execution
+5_9_padcomp,5.9 padcomp - Comparison of padding data,,,,,,,,,Francesco Rollo,
 5_10a_intptrconv,5.10 intptrconv - Naive pointer truncation,no,,no,,yes,unsafe pointer arithmetic blocked by verifier,no,Verifier recognizes and blocks pointer arithmetic pattern,Giovanni Nicosia,Demonstrates why naive approach fails and verifier protection works
 5_10a_exploit_intptrconv,5.10 intptrconv - Advanced pointer truncation bypass,no,,no,,no,,yes,Critical information disclosure vulnerability bypassing verifier protections,Giovanni Nicosia,Comprehensive exploit research with detailed analysis and diagnostic output
 5_10b_intptrconv,5.10 intptrconv - Hardcoded integer to pointer conversion,no,,no,,yes,invalid pointer usage rejected,no,Hardcoded integer to pointer conversion blocked by verifier,Giovanni Nicosia,Implements ISO-IEC TS 17961-2013 EXAMPLE 2
+5_11_alignconv,5.11 alignconv - Converting pointer values to more strictly aligned pointer types,,,,,,,,,Gianfranco Trad,
+5_11a_alignconv,5.11a alignconv - Converting pointer values to more strictly aligned pointer types,,,,,,,,,Gianfranco Trad,
+5_11c_alignconv,5.11c alignconv - Converting pointer values to more strictly aligned pointer types,,,,,,,,,Gianfranco Trad,
+5_13_objdec,5.13 objdec - Declaring function or object in incompatible ways,,,,,,,,,Gianfranco Trad,
+5_13b_objdec,5.13b objdec - Declaring function or object in incompatible ways,,,,,,,,,Gianfranco Trad,
+5_14_nullref,5.14 nullref - Dereferencing a possibly null or invalid pointer,,,,,,,,,Giorgio Fardo,
+5_14a_nullref,5.14a nullref - Dereferencing a possibly null or invalid pointer,,,,,,,,,Giorgio Fardo,
+5_14b_nullref,5.14b nullref - Dereferencing a possibly null or invalid pointer,,,,,,,,,Giorgio Fardo,
+5_15_addrescape,5.15 addrescape - Escaping the address of an automatic object,,,,,,,,,Giorgio Fardo,
+5_15a_addrescape,5.15a addrescape - Escaping the address of an automatic object,,,,,,,,,Giorgio Fardo,
+5_15b_addrescape,5.15b addrescape - Escaping the address of an automatic object,,,,,,,,,Giorgio Fardo,
 5_16a_signconv,5.16 signconv - Raw TCP payload access with signed conversion,no,,no,,yes,unsafe memory access blocked,no,Verifier prevents unsafe TCP payload access blocking attack vector,Giovanni Nicosia,Direct TCP payload access without proper bounds checking
 5_16b_signconv,5.16 signconv - Controlled demonstration,no,,no,,no,,limited,Controlled demonstration showing logic errors but confined to program logic,Giovanni Nicosia,Uses safe test data to demonstrate signed conversion vulnerability
 5_17_swtchdflt,5.17 swtchdflt - Missing switch default case,no,,yes,enumeration value 'FIREWALL_REDIRECT' not handled in switch [-Wswitch],no,,yes,Missing enum case creates undefined behavior potentially affecting firewall policy,Giovanni Nicosia,Integrates firewall classification with realistic port-based actions
 5_20a_libptr,5.20 libptr - Buffer overflow with __builtin_memcpy,no,,yes,comparison of distinct pointer types and memcpy overflow warning [-Wfortify-source],no,,yes,Buffer overflow of 8 bytes can corrupt adjacent stack variables,Giovanni Nicosia,TCP options extraction scenario with oversized copy operation
 5_20b_libptr,5.20 libptr - BPF helper with invalid size parameters,no,,no,,yes,invalid buffer size parameter detected,no,Verifier blocks invalid size parameter demonstrating better BPF helper protection,Giovanni Nicosia,Shows verifier is stricter with BPF helpers than __builtin_memcpy
 5_20c_libptr,5.20 libptr - Type confusion in size calculations,no,,yes,comparison of distinct pointer types [-Wcompare-distinct-pointer-types],no,,yes,Type confusion causing 12-byte buffer overflow corrupting adjacent stack memory,Giovanni Nicosia,Based on ISO-IEC TS 17961-2013 Rule 5.20 Example 2 sizeof type confusion
+5_22_invptr,5.22 invptr - Using out-of-bounds pointers or array subscripts,,,,,,,,,Gianfranco Trad,
+5_22b_invptr,5.22b invptr - Using out-of-bounds pointers or array subscripts,,,,,,,,,Gianfranco Trad,
+5_22c_invptr,5.22c invptr - Using out-of-bounds pointers or array subscripts,,,,,,,,,Gianfranco Trad,
+5_22d_invptr,5.22d invptr - Using out-of-bounds pointers or array subscripts,,,,,,,,,Gianfranco Trad,
+5_22e_invptr,5.22e invptr - Using out-of-bounds pointers or array subscripts,,,,,,,,,Gianfranco Trad,
+5_22f_invptr,5.22f invptr - Using out-of-bounds pointers or array subscripts,,,,,,,,,Gianfranco Trad,
+5_24a_usrfmt,5.24a usrfmt - Tainted input in format strings,,,,,,,,,Gianfranco Trad,
+5_24b_usrfmt,5.24b usrfmt - Tainted input in format strings,,,,,,,,,Gianfranco Trad,
+5_26_diverr,5.26 diverr - Integer division errors,,,,,,,,,Francesco Rollo,
+5_26_diverr_2,5.26 diverr - Integer division errors,,,,,,,,,Francesco Rollo,
+5_26_diverr_3,5.26 diverr - Integer division errors,,,,,,,,,Francesco Rollo,
+5_26_diverr_4,5.26 diverr - Integer division errors,,,,,,,,,Francesco Rollo,
+5_26_diverr_5,5.26 diverr - Integer division errors,,,,,,,,,Francesco Rollo,
+5_28_strmod,5.28 strmod - Modifying string literals,,,,,,,,,Giorgio Fardo,
+5_30_intoflow,5.30 intoflow - Overflowing signed integers,,,,,,,,,Giorgio Fardo,
+5_31_nonnullcs,5.31 nonnullcs - Non-null-terminated character sequences,,,,,,,,,Francesco Rollo,
+5_31_nonnullcs_2,5.31 nonnullcs - Non-null-terminated character sequences,,,,,,,,,Francesco Rollo,
+5_33_restrict,5.33 restrict - Passing pointers into the same object as arguments to different restrict-qualified parameters,,,,,,,,,Francesco Rollo,
+5_33_restrict_2,5.33 restrict - Passing pointers into the same object as arguments to different restrict-qualified parameters,,,,,,,,,Francesco Rollo,
+5_35_uninit_mem,5.35 uninit_mem - Referencing uninitialized memory,,,,,,,,,Giorgio Fardo,
+5_35a_unint_mem,5.35a uninit_mem - Referencing uninitialized memory,,,,,,,,,Giorgio Fardo,
+5_35b_unint_mem,5.35b uninit_mem - Referencing uninitialized memory,,,,,,,,,Giorgio Fardo,
 5_36a_ptrobj,5.36 ptrobj - Local buffer vs packet data comparison,no,,no,,no,,limited,Pointer comparison undefined behavior may leak memory layout information,Giovanni Nicosia,Creates two distinct objects from different memory regions
 5_36b_ptrobj,5.36 ptrobj - Context pointers vs packet data comparison,no,,no,,no,,limited,XDP context pointer comparisons may reveal kernel memory layout relationships,Giovanni Nicosia,Modified function signature to include XDP context parameter
 5_36c_ptrobj,5.36 ptrobj - Map pointers vs packet data comparison,no,,no,,no,,limited,Cross-object pointer comparisons may leak kernel heap organization information,Giovanni Nicosia,Includes additional hash map for testing cross-map pointer violations
+5_39_taintnoproto,5.39 taintnoproto - Using tainted values as function pointers without prototypes,,,,,,,,,Giorgio Fardo,
+5_40_taintformatio,5.40 taintformatio - Tainted value used in formatted I/O,,,,,,,,,Giorgio Fardo,
 5_45_invfmtstr,5.45 invfmtstr - Invalid format strings,no,,no,,no,,limited,Format string mismatches corrupt logging output and may leak memory addresses,Giovanni Nicosia,Multiple format string violations including type mismatch and invalid flag combinations
+5_46_taintsink_1,5.46 taintsink - Array indexing with tainted value,,,,,,,,,Francesco Rollo,
+5_46_taintsink_2,5.46 taintsink - Memory copy with tainted length,,,,,,,,,Francesco Rollo,
+5_46_taintsink_3,5.46 taintsink - Variable Length Arrays with tainted size,,,,,,,,,Francesco Rollo
