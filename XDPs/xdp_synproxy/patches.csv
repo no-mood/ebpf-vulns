@@ -1,7 +1,7 @@
 Test case id,Violated Rule,Compiler errors,Compiler error details,Extra compiler warnings,Extra compiler warnings details,eBPF verifier errors,eBPF verifier error details,Exploitable (yes/no),Exploitability details,Author,Notes
-5_01a_ptrcomp,5.1a ptrcomp - Accessing an object through a pointer to an incompatible type,,,,,,,,,Gianfranco Trad,
-5_01b_ptrcomp,5.1b ptrcomp - Accessing an object through a pointer to an incompatible type,,,,,,,,,Gianfranco Trad,
-5_01c_ptrcomp,5.1c ptrcomp - Accessing an object through a pointer to an incompatible type,,,,,,,,,Gianfranco Trad,
+5_01a_ptrcomp,5.1a ptrcomp - Accessing an object through a pointer to an incompatible type,no,,no,,no,,no,Not possible in eBPF due to verifier-enforced memory bounds, Gianfranco Trad,
+5_01b_ptrcomp,5.1b ptrcomp - Accessing an object through a pointer to an incompatible type,no,,no,,no,,no,Not possible in eBPF due to verifier-enforced memory bounds, Gianfranco Trad,
+5_01c_ptrcomp,5.1c ptrcomp - Accessing an object through a pointer to an incompatible type,no,,no,,no,,no,Not possible in eBPF due to verifier-enforced memory bounds, Gianfranco Trad,
 5_4a_boolasgn,5.4a boolasgn - Assignment in conditional expressions,no,,yes,using the result of an assignment as a condition without parentheses [-Wparentheses],yes,infinite loop detected,no,The program is not being loaded as it doesn't pass the verifier,Francesco Rollo,"Even by using workarounds to create a false cond. exit, the verifier process the program as 1M lines"
 5_4b_boolasgn,5.4b boolasgn - Assignment in conditional expressions,no,,yes,using the result of an assignment as a condition without parentheses [-Wparentheses],yes,infinite loop detected,no,The program is not being loaded as it doesn't pass the verifier,Francesco Rollo,
 5_06a_argcomp,5.6 argcomp - Function pointer type incompatibility,no,,yes,passing arguments to a function without a prototype is deprecated [-Wdeprecated-non-prototype],no,,yes,Function pointer type incompatibility disrupts calling convention potentially corrupting registers or stack data,Giovanni Nicosia,Demonstrates UB 26 - pointer used to call function with incompatible type
@@ -13,11 +13,11 @@ Test case id,Violated Rule,Compiler errors,Compiler error details,Extra compiler
 5_10a_intptrconv,5.10 intptrconv - Naive pointer truncation,no,,no,,yes,R8 pointer arithmetic with <<= operator prohibited,no,Verifier recognizes and blocks pointer arithmetic pattern,Giovanni Nicosia,Demonstrates why naive approach fails and verifier protection works
 5_10a_exploit_intptrconv,5.10 intptrconv - Advanced pointer truncation bypass,no,,no,,no,,yes,Critical information disclosure vulnerability bypassing verifier protections,Giovanni Nicosia,Advanced pointer truncation exploit bypassing verifier protections with comprehensive analysis
 5_10b_intptrconv,5.10 intptrconv - Hardcoded integer to pointer conversion,no,,no,,yes,R1 invalid mem access 'scalar',no,Hardcoded integer to pointer conversion blocked by verifier,Giovanni Nicosia,Implements Example 2 - hardcoded integer to pointer conversion
-5_11_alignconv,5.11 alignconv - Converting pointer values to more strictly aligned pointer types,,,,,,,,,Gianfranco Trad,
-5_11a_alignconv,5.11a alignconv - Converting pointer values to more strictly aligned pointer types,,,,,,,,,Gianfranco Trad,
-5_11c_alignconv,5.11c alignconv - Converting pointer values to more strictly aligned pointer types,,,,,,,,,Gianfranco Trad,
-5_13_objdec,5.13 objdec - Declaring function or object in incompatible ways,,,,,,,,,Gianfranco Trad,
-5_13b_objdec,5.13b objdec - Declaring function or object in incompatible ways,,,,,,,,,Gianfranco Trad,
+5_11_alignconv,5.11a alignconv - Converting pointer values to more strictly aligned pointer types,no,,no,,no,,no,Not memory exploitable; logical misinterpretation possible, Gianfranco Trad,
+5_11a_alignconv,5.11b alignconv - Converting pointer values to more strictly aligned pointer types,no,,no,,no,,no,Not memory exploitable; logical misinterpretation possible, Gianfranco Trad,
+5_11c_alignconv,5.11c alignconv - Converting pointer values to more strictly aligned pointer types,no,,no,,no,,no,Not memory exploitable; logical misinterpretation possible, Gianfranco Trad,
+5_13_objdec,5.13a objdec - Declaring function or object in incompatible ways,yes,conflicting types for 'fake_var',no,,no,,no,Compilation fails preventing runtime execution, Gianfranco Trad,
+5_13b_objdec,5.13b objdec - Declaring function or object in incompatible ways,yes,conflicting types for 'h',no,,no,,no,Compilation fails preventing runtime execution, Gianfranco Trad,
 5_14_nullref,5.14a nullref - Dereferencing a possibly null or invalid pointer,no,,no,,no,,yes,"If an attacker can craft a packet that omits or corrupts the IPv4 header, hdr->ipv4 may resolve to NULL or an invalid pointer. In such a case, the dereference of hdr->ipv4->saddr would trigger an invalid memory access, which in eBPF could lead to verifier bypasses being overlooked in other contexts,",Giorgio Fardo,
 5_14a_nullref,5.14b nullref - Dereferencing a possibly null or invalid pointer,no,,no,,no,,limited,"If an attacker can send IPv4 traffic, hdr->ipv6 will be NULL, and the dereference inside null_copy_address_v6() leads to an invalid pointer access. No real escape BPF attack path.",Giorgio Fardo,
 5_14b_nullref,5.14c nullref - Dereferencing a possibly null or invalid pointer,no,,no,,yes,R7 invalid mem access 'map_value_or_null',no,,Giorgio Fardo,
@@ -30,14 +30,14 @@ Test case id,Violated Rule,Compiler errors,Compiler error details,Extra compiler
 5_20a_libptr,5.20 libptr - Buffer overflow with __builtin_memcpy,no,,yes,comparison of distinct pointer types and memcpy overflow warning [-Wfortify-source],no,,yes,Buffer overflow of 8 bytes can corrupt adjacent stack variables,Giovanni Nicosia,TCP options extraction scenario with oversized copy operation
 5_20b_libptr,5.20 libptr - BPF helper with invalid size parameters,no,,no,,yes,invalid indirect access to stack R1 off=-24 size=32,no,Verifier blocks invalid size parameter demonstrating better BPF helper protection,Giovanni Nicosia,Shows verifier is stricter with BPF helpers than __builtin_memcpy
 5_20c_libptr,5.20 libptr - Type confusion in size calculations,no,,yes,comparison of distinct pointer types [-Wcompare-distinct-pointer-types],no,,yes,Type confusion causing 12-byte buffer overflow corrupting adjacent stack memory,Giovanni Nicosia,Based on Rule 5.20 Example 2 sizeof type confusion
-5_22_invptr,5.22 invptr - Using out-of-bounds pointers or array subscripts,,,,,,,,,Gianfranco Trad,
-5_22b_invptr,5.22b invptr - Using out-of-bounds pointers or array subscripts,,,,,,,,,Gianfranco Trad,
-5_22c_invptr,5.22c invptr - Using out-of-bounds pointers or array subscripts,,,,,,,,,Gianfranco Trad,
-5_22d_invptr,5.22d invptr - Using out-of-bounds pointers or array subscripts,,,,,,,,,Gianfranco Trad,
-5_22e_invptr,5.22e invptr - Using out-of-bounds pointers or array subscripts,,,,,,,,,Gianfranco Trad,
-5_22f_invptr,5.22f invptr - Using out-of-bounds pointers or array subscripts,,,,,,,,,Gianfranco Trad,
-5_24a_usrfmt,5.24a usrfmt - Tainted input in format strings,,,,,,,,,Gianfranco Trad,
-5_24b_usrfmt,5.24b usrfmt - Tainted input in format strings,,,,,,,,,Gianfranco Trad,
+5_22_invptr,5.22a invptr - Using out-of-bounds pointers or array subscripts,no,,no,,no,,no,Not exploitable in eBPF due to verifier-enforced memory bounds, Gianfranco Trad,
+5_22b_invptr,5.22b invptr - Using out-of-bounds pointers or array subscripts,no,,no,,no,,no,Not exploitable for memory corruption; logical misinterpretation possible, Gianfranco Trad,
+5_22c_invptr,5.22c invptr - Using out-of-bounds pointers or array subscripts,no,,no,,yes,,no,Only logically exploitable; no memory corruption possible, Gianfranco Trad,
+5_22d_invptr,5.22d invptr - Using out-of-bounds pointers or array subscripts,yes,array subscript is out of bounds,no,,no,,no,Compilation fails preventing runtime execution, Gianfranco Trad,
+5_22e_invptr,5.22e invptr - Using out-of-bounds pointers or array subscripts,no,,no,,no,,no,Not exploitable for memory corruption; logical misinterpretation possible, Gianfranco Trad,
+5_22f_invptr,5.22f invptr - Using out-of-bounds pointers or array subscripts,no,,no,,no,,no,Only logically exploitable; memory corruption prevented by verifier bounds, Gianfranco Trad,
+5_24a_usrfmt,5.24a usrfmt - Tainted input in format strings,yes,bpf_map_lookup_elem returns void * incompatible with char *,no,,no,,no,Compilation fails due to strict pointer type mismatch, Gianfranco Trad,
+5_24b_usrfmt,5.24b usrfmt - Tainted input in format strings,no,,no,,yes,,no,Logic-level exploit possible; memory corruption prevented by verifier, Gianfranco Trad,
 5_26a_diverr,5.26a diverr - Integer division errors,no,,no,,no,,no,,Francesco Rollo,destination register is always set to 0
 5_26b_diverr,5.26b diverr - Integer division errors,no,,no,,no,,no,,Francesco Rollo,Same as previous test but split in a new file (only division)
 5_26c_diverr,5.26c diverr - Integer division errors,no,,no,,no,,no,,Francesco Rollo,Same as previous test but split in a new file (only modulo)
