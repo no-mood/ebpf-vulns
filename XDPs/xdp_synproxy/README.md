@@ -290,7 +290,7 @@ xdp_synproxy_kern.c:626:25: note: use '==' to turn this assignment into an equal
 
 Calling functions with incorrect arguments, incompatible types, or mismatched prototypes leads to undefined behavior. This commonly occurs in multi-file projects where function declarations and definitions don't match.
 
-#### 5_06a_argcomp
+#### 5_06a_argcomp: Function pointer type incompatibility
 
 **Implementation Details:**
 - A function pointer `fp_wrong_type` is declared with signature `__u16 ()()` (no arguments, returns `__u16`).
@@ -305,7 +305,7 @@ Calling functions with incorrect arguments, incompatible types, or mismatched pr
 
 **Exploitable:** **TODO**
 
-#### 5_06b_argcomp
+#### 5_06b_argcomp: Wrong number of arguments
 
 **Implementation Details:**
 - Forward declaration `network_copy_helper()` is made without parameters to simulate separate compilation units.
@@ -320,7 +320,7 @@ Calling functions with incorrect arguments, incompatible types, or mismatched pr
 
 **Exploitable:** **TODO**
 
-#### 5_06c_argcomp
+#### 5_06c_argcomp: Variadic function without prototype
 
 **Implementation Details:**
 - Forward declaration `debug_print_helper()` is made without parameters, hiding its variadic nature.
@@ -335,7 +335,7 @@ Calling functions with incorrect arguments, incompatible types, or mismatched pr
 
 **Exploitable:** **TODO**
 
-#### 5_06d_argcomp
+#### 5_06d_argcomp: Wrong argument types
 
 **Implementation Details:**
 - Forward declaration `helper_function()` is made without parameters to simulate cross-file compilation.
@@ -350,7 +350,7 @@ Calling functions with incorrect arguments, incompatible types, or mismatched pr
 
 **Exploitable:** **TODO**
 
-#### 5_06e_argcomp
+#### 5_06e_argcomp: BPF helper function with incompatible argument types
 
 **Implementation Details:**
 - `bpf_map_lookup_elem()` expects `(void *map, const void *key)` with a valid map pointer.
@@ -390,7 +390,7 @@ If two instances of an identical-looking struct have their data fields set to th
 
 Converting pointers to integers and back can lead to undefined behavior if the resulting pointer is incorrectly aligned, doesn't point to an entity of the referenced type, or creates invalid memory references. This is particularly dangerous in eBPF where pointer arithmetic is strictly controlled by the verifier.
 
-#### 5_10a_intptrconv
+#### 5_10a_intptrconv: Naive pointer truncation approach (blocked by verifier)
 
 **Implementation Details:**
 - Demonstrates the straightforward but naive approach to pointer-to-integer conversion and arithmetic.
@@ -404,7 +404,7 @@ Converting pointers to integers and back can lead to undefined behavior if the r
 
 **Exploitable:** **TODO**
 
-#### 5_10a_exploit_intptrconv
+#### 5_10a_exploit_intptrconv: Information disclosure via advanced pointer truncation bypass
 
 **Implementation Details:**
 - Comprehensive exploit research demonstrating real information disclosure through pointer truncation.
@@ -419,7 +419,7 @@ Converting pointers to integers and back can lead to undefined behavior if the r
 
 **Exploitable:** Yes, critical information disclosure vulnerability that bypasses verifier protections and can leak kernel memory contents.
 
-#### 5_10b_intptrconv
+#### 5_10b_intptrconv: Hardcoded integer to pointer conversion
 
 **Implementation Details:**
 - Direct conversion of hardcoded integer `0xDEADBEEF` to pointer (`magic_ptr = (void *)MAGIC_ADDR`).
@@ -702,7 +702,7 @@ Automatic (stack-allocated) variables exist only for the lifetime of the functio
 
 When `char` is signed (implementation-defined), converting directly to `int` without first casting to `unsigned char` can cause 0xFF bytes to be sign-extended to -1 (EOF), leading to false positives in EOF checks.
 
-#### 5_16a_signconv
+#### 5_16a_signconv: Raw TCP payload access with signed conversion (unsafe memory access)
 
 **Implementation Details:**
 - Directly accesses TCP payload data (`char *tcp_payload = (char *)hdr->tcp + (hdr->tcp->doff * 4)`) without proper bounds checking.
@@ -716,7 +716,7 @@ When `char` is signed (implementation-defined), converting directly to `int` wit
 
 **Exploitable:** **TODO**
 
-#### 5_16b_signconv
+#### 5_16b_signconv: Controlled demonstration of signed char conversion vulnerability
 
 **Implementation Details:**
 - Uses controlled test data (`char test_data[4] = {0x41, 0x42, 0xFF, 0x44}`) to demonstrate the same vulnerability while passing verifier checks.
@@ -735,7 +735,7 @@ When `char` is signed (implementation-defined), converting directly to `int` wit
 
 A switch statement with an enumerated controlling expression that lacks a default case and doesn't handle all enumeration constants can lead to undefined behavior when unhandled values are encountered.
 
-#### 5_17_swtchdflt
+#### 5_17_swtchdflt: Switch statement missing default case for firewall actions
 
 **Implementation Details:**
 - Defines a `firewall_action` enum with four values: `FIREWALL_ALLOW`, `FIREWALL_BLOCK`, `FIREWALL_REDIRECT`, and `FIREWALL_LOG`.
@@ -1203,7 +1203,7 @@ This test demonstrates how dynamically adjusting packet size can expose uninitia
 
 Subtracting or relationally comparing pointers that don't refer to the same array object results in undefined behavior. This commonly occurs when accidentally mixing pointers from different memory regions in packet processing scenarios.
 
-#### 5_36a_ptrobj
+#### 5_36a_ptrobj: Local buffer vs packet data pointer comparison
 
 **Implementation Details:**
 - Creates two distinct objects: packet data from the network (Object 1) and a local stack buffer (Object 2).
@@ -1218,7 +1218,7 @@ Subtracting or relationally comparing pointers that don't refer to the same arra
 
 **Exploitable:** **TODO**
 
-#### 5_36b_ptrobj
+#### 5_36b_ptrobj: Context pointers vs packet data comparison
 
 **Implementation Details:**
 - Focuses on violations between XDP context structure pointers and packet data pointers.
@@ -1233,7 +1233,7 @@ Subtracting or relationally comparing pointers that don't refer to the same arra
 
 **Exploitable:** **TODO**
 
-#### 5_36c_ptrobj
+#### 5_36c_ptrobj: Map pointers vs packet data comparison
 
 **Implementation Details:**
 - Targets violations between eBPF map value pointers (heap objects) and packet data.
@@ -1254,7 +1254,7 @@ Subtracting or relationally comparing pointers that don't refer to the same arra
 
 Invoking a function with arguments that cause it to form pointers that do not point into or just past the end of an object violates Rule 5.20. While eBPF doesn't have access to standard C library functions, it still uses memory manipulation functions like `__builtin_memcpy` and BPF helpers that can form invalid pointers through incorrect size calculations.
 
-#### 5_20a_libptr
+#### 5_20a_libptr: Buffer overflow with __builtin_memcpy oversized copy
 
 **Implementation Details:**
 - Allocates a 16-byte buffer but attempts to copy 24 bytes using `__builtin_memcpy`
@@ -1269,7 +1269,7 @@ Invoking a function with arguments that cause it to form pointers that do not po
 
 **Exploitable:** **Potentially dangerous** - Buffer overflow of 8 bytes can corrupt stack variables adjacent to the buffer, potentially causing program crashes or memory corruption
 
-#### 5_20b_libptr
+#### 5_20b_libptr: BPF helper with invalid size parameters (verifier rejected)
 
 **Implementation Details:**
 - Uses `bpf_probe_read_kernel` with size parameter (32 bytes) larger than destination buffer (12 bytes)
@@ -1284,7 +1284,7 @@ Invoking a function with arguments that cause it to form pointers that do not po
 
 **Exploitable:** **Not exploitable** - The verifier prevents this violation from executing, demonstrating better protection for BPF helpers compared to `__builtin_memcpy`
 
-#### 5_20c_libptr
+#### 5_20c_libptr: Type confusion in size calculations causing buffer overflow
 
 **Implementation Details:**
 - Performs size calculations using wrong data types (e.g., `sizeof(int) * 8 = 32` instead of `sizeof(char) * 8 = 8`)
@@ -1352,7 +1352,7 @@ In this case we use the helper `bpf_snprintf`, on the other hand `bpf_trace_prin
 ### [5.45 invfmtstr]: Invalid format strings in formatted I/O functions
 
 Using format strings with conversion specifiers that don't match the provided arguments, invalid flag combinations, or incorrect argument counts leads to undefined behavior and potentially exploitable vulnerabilities.
-#### 5_45_invfmtstr
+#### 5_45_invfmtstr: Invalid format strings with mismatched arguments
 
 **Implementation Details:**
 - **Type Mismatch (UB 160):** `bpf_printk("Parsing packet at offset %s\n", (long)data)` - %s expects string but receives integer, resulting in empty/garbage output.
