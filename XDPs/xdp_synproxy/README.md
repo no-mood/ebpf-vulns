@@ -301,7 +301,10 @@ Calling functions with incorrect arguments, incompatible types, or mismatched pr
 
 **Verifier:** Passed (compiles with warnings, but type incompatibility remains).
 
-**Extra warnings:** **TODO**
+**Extra warnings:**
+```
+xdp_synproxy_kern.c:449:35: warning: passing arguments to a function without a prototype is deprecated in all versions of C and is not supported in C23 [-Wdeprecated-non-prototype]
+```
 
 **Exploitable:** **TODO**
 
@@ -316,7 +319,11 @@ Calling functions with incorrect arguments, incompatible types, or mismatched pr
 
 **Verifier:** Passed (function call succeeds but with undefined argument handling).
 
-**Extra warnings:** **TODO**
+**Extra warnings:**
+```
+xdp_synproxy_kern.c:444:21: warning: passing arguments to 'network_copy_helper' without a prototype is deprecated in all versions of C and is not supported in C23 [-Wdeprecated-non-prototype]
+xdp_synproxy_kern.c:374:6: warning: a function declaration without a prototype is deprecated in all versions of C and is treated as a zero-parameter prototype in C23, conflicting with a subsequent definition [-Wdeprecated-non-prototype]
+```
 
 **Exploitable:** **TODO**
 
@@ -331,7 +338,12 @@ Calling functions with incorrect arguments, incompatible types, or mismatched pr
 
 **Verifier:** Not passed (compilation fails due to conflicting function prototypes).
 
-**Extra warnings:** **TODO**
+**Extra warnings:**
+```
+xdp_synproxy_kern.c:445:20: warning: passing arguments to 'debug_print_helper' without a prototype is deprecated in all versions of C and is not supported in C23 [-Wdeprecated-non-prototype]
+xdp_synproxy_kern.c:374:6: warning: a function declaration without a prototype is deprecated in all versions of C and is treated as a zero-parameter prototype in C23, conflicting with a subsequent definition [-Wdeprecated-non-prototype]
+xdp_synproxy_kern.c:453:6: error: conflicting types for 'debug_print_helper'
+```
 
 **Exploitable:** **TODO**
 
@@ -346,7 +358,11 @@ Calling functions with incorrect arguments, incompatible types, or mismatched pr
 
 **Verifier:** Passed (function call succeeds but with potential data truncation/extension issues).
 
-**Extra warnings:** **TODO**
+**Extra warnings:**
+```
+xdp_synproxy_kern.c:445:31: warning: passing arguments to 'helper_function' without a prototype is deprecated in all versions of C and is not supported in C23 [-Wdeprecated-non-prototype]
+xdp_synproxy_kern.c:374:6: warning: a function declaration without a prototype is deprecated in all versions of C and is treated as a zero-parameter prototype in C23, conflicting with a subsequent definition [-Wdeprecated-non-prototype]
+```
 
 **Exploitable:** **TODO**
 
@@ -361,7 +377,7 @@ Calling functions with incorrect arguments, incompatible types, or mismatched pr
 
 **Verifier:** Failed (should reject program with invalid map pointer).
 
-**Extra warnings:** **TODO**
+**Extra warnings:** None (only base warnings present - compiles successfully)
 
 **Exploitable:** **TODO**
 
@@ -400,7 +416,7 @@ Converting pointers to integers and back can lead to undefined behavior if the r
 
 **Verifier:** Failed (correctly blocks unsafe pointer arithmetic).
 
-**Extra warnings:** **TODO**
+**Extra warnings:** None (only base warnings present - compiles successfully)
 
 **Exploitable:** **TODO**
 
@@ -415,7 +431,7 @@ Converting pointers to integers and back can lead to undefined behavior if the r
 
 **Verifier:** Passed (successful information disclosure exploit through verifier bypass).
 
-**Extra warnings:** **TODO**
+**Extra warnings:** None (only base warnings present)
 
 **Exploitable:** Yes, critical information disclosure vulnerability that bypasses verifier protections and can leak kernel memory contents.
 
@@ -429,7 +445,7 @@ Converting pointers to integers and back can lead to undefined behavior if the r
 
 **Verifier:** Failed (rejects program due to invalid pointer usage).
 
-**Extra warnings:** **TODO**
+**Extra warnings:** None (only base warnings present - compiles successfully)
 
 **Exploitable:** **TODO**
 
@@ -712,7 +728,7 @@ When `char` is signed (implementation-defined), converting directly to `int` wit
 
 **Verifier:** Not passed (unsafe memory access).
 
-**Extra warnings:** **TODO**
+**Extra warnings:** None (only base warnings present - compiles successfully)
 
 **Exploitable:** **TODO**
 
@@ -725,7 +741,7 @@ When `char` is signed (implementation-defined), converting directly to `int` wit
 
 **Verifier:** Passed (controlled demonstration).
 
-**Extra warnings:** **TODO**
+**Extra warnings:** None (only base warnings present)
 
 **Exploitable:** **TODO**
 
@@ -746,7 +762,10 @@ A switch statement with an enumerated controlling expression that lacks a defaul
 
 **Verifier:** Passed (but causes undefined behavior on missing cases).
 
-**Extra warnings:** **TODO**
+**Extra warnings:**
+```
+xdp_synproxy_kern.c:509:10: warning: enumeration value 'FIREWALL_REDIRECT' not handled in switch [-Wswitch]
+```
 
 **Exploitable:** **TODO**
 
@@ -1214,7 +1233,7 @@ Subtracting or relationally comparing pointers that don't refer to the same arra
 
 **Verifier:** Passed (but produces undefined results that may leak memory layout information).
 
-**Extra warnings:** **TODO**
+**Extra warnings:** None (only base warnings present)
 
 **Exploitable:** **TODO**
 
@@ -1229,7 +1248,7 @@ Subtracting or relationally comparing pointers that don't refer to the same arra
 
 **Verifier:** Passed (but produces undefined results that may leak memory layout information).
 
-**Extra warnings:** **TODO**
+**Extra warnings:** None (only base warnings present)
 
 **Exploitable:** **TODO**
 
@@ -1244,7 +1263,7 @@ Subtracting or relationally comparing pointers that don't refer to the same arra
 
 **Verifier:** Passed (but produces undefined results that may leak memory layout information).
 
-**Extra warnings:** **TODO**
+**Extra warnings:** None (only base warnings present)
 
 **Exploitable:** **TODO**
 
@@ -1265,7 +1284,11 @@ Invoking a function with arguments that cause it to form pointers that do not po
 
 **Verifier:** **Passed** - The eBPF verifier does not detect this buffer overflow, allowing the violation to execute
 
-**Extra warnings:** **TODO**
+**Extra warnings:**
+```
+xdp_synproxy_kern.c:469:25: warning: comparison of distinct pointer types ('char *' and 'void *') [-Wcompare-distinct-pointer-types]
+xdp_synproxy_kern.c:476:4: warning: 'memcpy' will always overflow; destination buffer has size 16, but size argument is 24 [-Wfortify-source]
+```
 
 **Exploitable:** **Potentially dangerous** - Buffer overflow of 8 bytes can corrupt stack variables adjacent to the buffer, potentially causing program crashes or memory corruption
 
@@ -1280,7 +1303,7 @@ Invoking a function with arguments that cause it to form pointers that do not po
 
 **Verifier:** **Rejected** - The eBPF verifier blocks this pattern, detecting the invalid buffer size parameter
 
-**Extra warnings:** **TODO**
+**Extra warnings:** None (only base warnings present - compiles successfully)
 
 **Exploitable:** **Not exploitable** - The verifier prevents this violation from executing, demonstrating better protection for BPF helpers compared to `__builtin_memcpy`
 
@@ -1295,7 +1318,10 @@ Invoking a function with arguments that cause it to form pointers that do not po
 
 **Verifier:** **Passed** - The verifier does not detect type confusion in size calculations, allowing the buffer overflow
 
-**Extra warnings:** **TODO**
+**Extra warnings:**
+```
+xdp_synproxy_kern.c:476:33: warning: comparison of distinct pointer types ('char *' and 'void *') [-Wcompare-distinct-pointer-types]
+```
 
 **Exploitable:** **Dangerous** - Type confusion causing 12-byte buffer overflow may corrupt adjacent stack memory, leading to program instability or information leakage
 
@@ -1363,7 +1389,7 @@ Using format strings with conversion specifiers that don't match the provided ar
 
 **Verifier:** Passed (format string errors not detected by verifier, manifest at runtime).
 
-**Extra warnings:** **TODO**
+**Extra warnings:** None (only base warnings present)
 
 **Exploitable:** **TODO**
 
