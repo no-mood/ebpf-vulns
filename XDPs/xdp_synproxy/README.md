@@ -168,6 +168,8 @@ All three UB injections compile and pass the eBPF verifier since they remain wit
 
 *Signed-by*: Gianfranco Trad
 
+---
+
 ### [5.4 boolasgn]: No assignment in conditional expressions
 
 Frequent mistake in C/C++ is typing `if (x = y)` instead of `if (x == y)`. The assignment expression `(x = y)` evaluates to the value assigned to `x`. If `y` is non-zero, the condition is always true, regardless of `x`'s initial value. This can lead to bugs where code branches are taken unexpectedly or loops become infinite.
@@ -233,11 +235,13 @@ xdp_synproxy_kern.c:626:25: note: use '==' to turn this assignment into an equal
 
 *Signed-by: Francesco Rollo*
 
+---
+
 ### [5.6 argcomp]: Calling a function with the wrong number or type of arguments
 
 Calling functions with incorrect arguments, incompatible types, or mismatched prototypes leads to undefined behavior. This commonly occurs in multi-file projects where function declarations and definitions don't match.
 
-#### 5_06a_argcomp: Function pointer type incompatibility
+#### [5_06a_argcomp]: Function pointer type incompatibility
 
 **Implementation Details:**
 - A function pointer `fp_wrong_type` is declared with signature `__u16 ()()` (no arguments, returns `__u16`).
@@ -255,7 +259,7 @@ xdp_synproxy_kern.c:449:35: warning: passing arguments to a function without a p
 
 **Exploitable:** **Potentially dangerous** - Function pointer type incompatibility disrupts the calling convention, potentially corrupting registers or stack data when arguments are passed incorrectly. This can lead to unpredictable program behavior or memory corruption.
 
-#### 5_06b_argcomp: Wrong number of arguments
+#### [5_06b_argcomp]: Wrong number of arguments
 
 **Implementation Details:**
 - Forward declaration `network_copy_helper()` is made without parameters to simulate separate compilation units.
@@ -274,7 +278,7 @@ xdp_synproxy_kern.c:374:6: warning: a function declaration without a prototype i
 
 **Exploitable:** **Potentially dangerous** - Passing extra arguments can overwrite adjacent stack memory since the function only expects two parameters. The third argument gets pushed onto the stack but has no designated storage, potentially corrupting nearby data structures.
 
-#### 5_06c_argcomp: Variadic function without prototype
+#### [5_06c_argcomp]: Variadic function without prototype
 
 **Implementation Details:**
 - Forward declaration `debug_print_helper()` is made without parameters, hiding its variadic nature.
@@ -294,7 +298,7 @@ xdp_synproxy_kern.c:453:6: error: conflicting types for 'debug_print_helper'
 
 **Exploitable:** **Not exploitable** - Compilation fails due to conflicting function declarations, preventing the code from running. No runtime security risk exists since the program cannot be built.
 
-#### 5_06d_argcomp: Wrong argument types
+#### [5_06d_argcomp]: Wrong argument types
 
 **Implementation Details:**
 - Forward declaration `helper_function()` is made without parameters to simulate cross-file compilation.
@@ -313,7 +317,7 @@ xdp_synproxy_kern.c:374:6: warning: a function declaration without a prototype i
 
 **Exploitable:** **Limited** - The int/long type mismatch causes value truncation or sign extension issues, but the impact remains localized to the affected variable without broader memory safety implications.
 
-#### 5_06e_argcomp: BPF helper function with incompatible argument types
+#### [5_06e_argcomp]: BPF helper function with incompatible argument types
 
 **Implementation Details:**
 - `bpf_map_lookup_elem()` expects `(void *map, const void *key)` with a valid map pointer.
@@ -329,6 +333,8 @@ xdp_synproxy_kern.c:374:6: warning: a function declaration without a prototype i
 **Exploitable:** **Not exploitable** - The eBPF verifier detects the invalid map pointer and rejects the program entirely. While this would be extremely dangerous in kernel space, the verification prevents execution.
 
 *Signed-by: Giovanni Nicosia*
+
+---
 
 ### [5.9 padcomp]: Comparison of padding data
 
@@ -353,11 +359,13 @@ If two instances of an identical-looking struct have their data fields set to th
 
 Signed-by: Francesco Rollo*
 
+---
+
 ### [5.10 intptrconv]: Converting a pointer type to an integer type or integer type to a pointer type
 
 Converting pointers to integers and back can lead to undefined behavior if the resulting pointer is incorrectly aligned, doesn't point to an entity of the referenced type, or creates invalid memory references. This is particularly dangerous in eBPF where pointer arithmetic is strictly controlled by the verifier.
 
-#### 5_10a_intptrconv: Naive pointer truncation approach (blocked by verifier)
+#### [5_10a_intptrconv]: Naive pointer truncation approach (blocked by verifier)
 
 **Implementation Details:**
 - Demonstrates the straightforward but naive approach to pointer-to-integer conversion and arithmetic.
@@ -371,7 +379,7 @@ Converting pointers to integers and back can lead to undefined behavior if the r
 
 **Exploitable:** **Not exploitable** - The verifier recognizes and blocks the pointer arithmetic pattern before program execution. This demonstrates that the security mechanisms effectively prevent this class of attack.
 
-#### 5_10a_exploit_intptrconv: Information disclosure via advanced pointer truncation bypass
+#### [5_10a_exploit_intptrconv]: Information disclosure via advanced pointer truncation bypass
 
 **Implementation Details:**
 - Comprehensive exploit research demonstrating real information disclosure through pointer truncation.
@@ -386,7 +394,7 @@ Converting pointers to integers and back can lead to undefined behavior if the r
 
 **Exploitable:** Yes, critical information disclosure vulnerability that bypasses verifier protections and can leak kernel memory contents.
 
-#### 5_10b_intptrconv: Hardcoded integer to pointer conversion
+#### [5_10b_intptrconv]: Hardcoded integer to pointer conversion
 
 **Implementation Details:**
 - Direct conversion of hardcoded integer `0xDEADBEEF` to pointer (`magic_ptr = (void *)MAGIC_ADDR`).
@@ -401,6 +409,8 @@ Converting pointers to integers and back can lead to undefined behavior if the r
 **Exploitable:** **Not exploitable** - Converting hardcoded integers to pointers would allow arbitrary memory access in normal programs, but the eBPF verifier catches this pattern and blocks execution entirely.
 
 *Signed-by: Giovanni Nicosia*
+
+---
 
 ### [5.11 alignconv]: Converting pointer values to more strictly aligned pointer types
 
@@ -484,6 +494,8 @@ All three UB injections pass the verifier since the eBPF memory model only check
 
 *Signed-by*: Gianfranco Trad
 
+---
+
 ### [5.13 objdec]: Declaring the same function or object in incompatible ways
 
 Declaring the same function or object multiple times with **incompatible types** is **undefined behavior** in C. According to ISO/IEC 9899:2011 §6.2.7, two or more incompatible declarations of the same object or function in the same program must be diagnosed.
@@ -535,6 +547,8 @@ In **eBPF**, this UB manifests at **compile time**, because the compiler enforce
 UB from incompatible object or function declarations is caught at compile time, preventing the program from being loaded or executed.
 
 *Signed-by*: Gianfranco Trad
+
+---
 
 ### [5.14 nullref]: Dereferencing a possibly null or invalid pointer
 
@@ -597,6 +611,8 @@ processed 122 insns (limit 1000000) max_states_per_insn 0 total_states 9 peak_st
 
 *Signed-by: Giorgio Fardo*
 
+---
+
 ### [5.15 addrescape]: Escaping the address of an automatic object
 
 Automatic (stack-allocated) variables exist only for the lifetime of the function in which they are defined. Returning or storing their address beyond that lifetime results in undefined behavior, as the memory may be overwritten or invalidated.
@@ -657,11 +673,13 @@ xdp_synproxy_kern.c:761:9: warning: address of stack memory associated with loca
 
 *Signed-off-by: Giorgio Fardo*
 
+---
+
 ### [5.16 signconv]: Converting a tainted value of type char or signed char to a larger integer type without first casting to unsigned char
 
 When `char` is signed (implementation-defined), converting directly to `int` without first casting to `unsigned char` can cause 0xFF bytes to be sign-extended to -1 (EOF), leading to false positives in EOF checks.
 
-#### 5_16a_signconv: Raw TCP payload access with signed conversion (unsafe memory access)
+#### [5_16a_signconv]: Raw TCP payload access with signed conversion (unsafe memory access)
 
 **Implementation Details:**
 - Directly accesses TCP payload data (`char *tcp_payload = (char *)hdr->tcp + (hdr->tcp->doff * 4)`) without proper bounds checking.
@@ -675,7 +693,7 @@ When `char` is signed (implementation-defined), converting directly to `int` wit
 
 **Exploitable:** **Not exploitable** - While the signed conversion vulnerability is conceptually valid, the verifier prevents unsafe access to TCP payload data, blocking the attack vector before it can cause memory corruption.
 
-#### 5_16b_signconv: Controlled demonstration of signed char conversion vulnerability
+#### [5_16b_signconv]: Controlled demonstration of signed char conversion vulnerability
 
 **Implementation Details:**
 - Uses controlled test data (`char test_data[4] = {0x41, 0x42, 0xFF, 0x44}`) to demonstrate the same vulnerability while passing verifier checks.
@@ -690,11 +708,13 @@ When `char` is signed (implementation-defined), converting directly to `int` wit
 
 *Signed-by: Giovanni Nicosia*
 
+---
+
 ### [5.17 swtchdflt]: Switch statement missing default case or incomplete enumeration coverage
 
 A switch statement with an enumerated controlling expression that lacks a default case and doesn't handle all enumeration constants can lead to undefined behavior when unhandled values are encountered.
 
-#### 5_17_swtchdflt: Switch statement missing default case for firewall actions
+#### [5_17_swtchdflt]: Switch statement missing default case for firewall actions
 
 **Implementation Details:**
 - Defines a `firewall_action` enum with four values: `FIREWALL_ALLOW`, `FIREWALL_BLOCK`, `FIREWALL_REDIRECT`, and `FIREWALL_LOG`.
@@ -713,6 +733,8 @@ xdp_synproxy_kern.c:509:10: warning: enumeration value 'FIREWALL_REDIRECT' not h
 **Exploitable:** **Potentially dangerous** - The missing FIREWALL_REDIRECT case creates undefined behavior when packets trigger that action. This can result in arbitrary return values, potentially causing legitimate traffic to be dropped or malicious traffic to pass through.
 
 *Signed-by: Giovanni Nicosia*
+
+---
 
 ### [5.22 invptr]: Using out-of-bounds pointers or array subscripts
 
@@ -846,6 +868,8 @@ In eBPF, the verifier enforces **memory safety** (bounds checking) for packet an
 
 *Signed-by*: Gianfranco Trad
 
+---
+
 ### [5.24 usrfmt]: Including tainted or out-of-domain input in a format string
 
 Using **tainted or unvalidated input** in a format string for formatted I/O functions (e.g., `printf`, `vfprintf`, `bpf_printk`) is **undefined behavior** in C (ISO/IEC 9899:2011 §7.21.6). This can lead to:
@@ -913,6 +937,8 @@ In eBPF, the verifier ensures memory safety but does **not validate format strin
 - **Exploitable scenarios**: Logical or information leakage; memory corruption prevented by eBPF verifier.
 
 *Signed-by*: Gianfranco Trad
+
+---
 
 ### [5.26 diverr]: Integer division errors
 
@@ -983,6 +1009,8 @@ In C, the modulo requires the result to fit within the signed integer range. For
 
 *Signed-by: Francesco Rollo*
 
+---
+
 ### [5.28 strmod]: Modifying string literals
 
 String literals in C are stored in read-only memory. Attempting to modify them results in undefined behavior, typically leading to a segmentation fault or silent failure.
@@ -1003,6 +1031,8 @@ No extra tests as are pointless.
 
 *Signed-by: Giorgio Fardo*
 
+---
+
 ### [5.30 intoflow]: Overflowing signed integers
 
 Integer overflow of signed types is undefined behavior in C. While unsigned integer overflow is well-defined, signed overflow can result in unpredictable behavior, especially if optimized away or miscompiled.
@@ -1022,6 +1052,8 @@ Integer overflow of signed types is undefined behavior in C. While unsigned inte
 No extra tests as **wrap** is always  there no out of bound memory access are possible using overload as overflow is not possible.
 
 *Signed-by: Giorgio Fardo*
+
+---
 
 ### [5.31 nonnullcs]: Passing a non-null-terminated character sequence to a library function that expects a string
 
@@ -1063,6 +1095,8 @@ If a character array passed to such a function is *not* null-terminated within i
 The Verifier prevents the program to read adjacent memory content as it always zero initialize each stack frame.
 
 *Signed-by: Francesco Rollo*
+
+---
 
 ### [5.33 restrict]: Passing pointers into the same object as arguments to different restrict-qualified parameters
 
@@ -1117,6 +1151,8 @@ In the eBPF context only local stack memory is affected, so no arbitrary memory 
 **Exploitable:** Not in a security sense. It only causes local stack data corruption.
 
 *Signed-by: Francesco Rollo*
+
+---
 
 ### [5.35 unint_mem]: Referencing uninitialized memory
 
@@ -1176,11 +1212,13 @@ xdp_synproxy_kern.c:760:19: note: initialize the variable 'uninit_int' to silenc
 
 *Signed-off: Giorgio Fardo*
 
+---
+
 ### [5.36 ptrobj]: Subtracting or comparing pointers from different array objects
 
 Subtracting or relationally comparing pointers that don't refer to the same array object results in undefined behavior. This commonly occurs when accidentally mixing pointers from different memory regions in packet processing scenarios.
 
-#### 5_36a_ptrobj: Local buffer vs packet data pointer comparison
+#### [5_36a_ptrobj]: Local buffer vs packet data pointer comparison
 
 **Implementation Details:**
 - Creates two distinct objects: packet data from the network (Object 1) and a local stack buffer (Object 2).
@@ -1195,7 +1233,7 @@ Subtracting or relationally comparing pointers that don't refer to the same arra
 
 **Exploitable:** **Limited** - Comparing pointers from different objects produces undefined results that may leak memory layout information through comparison outcomes, but cannot directly access unauthorized memory regions.
 
-#### 5_36b_ptrobj: Context pointers vs packet data comparison
+#### [5_36b_ptrobj]: Context pointers vs packet data comparison
 
 **Implementation Details:**
 - Focuses on violations between XDP context structure pointers and packet data pointers.
@@ -1210,7 +1248,7 @@ Subtracting or relationally comparing pointers that don't refer to the same arra
 
 **Exploitable:** **Limited** - Comparing XDP context pointers with packet data may reveal kernel memory layout relationships, but eBPF's memory protection prevents this from escalating to unauthorized access.
 
-#### 5_36c_ptrobj: Map pointers vs packet data comparison
+#### [5_36c_ptrobj]: Map pointers vs packet data comparison
 
 **Implementation Details:**
 - Targets violations between eBPF map value pointers (heap objects) and packet data.
@@ -1227,11 +1265,13 @@ Subtracting or relationally comparing pointers that don't refer to the same arra
 
 *Signed-by: Giovanni Nicosia*
 
+---
+
 ### [5.20 libptr]: Forming invalid pointers by library function
 
 Invoking a function with arguments that cause it to form pointers that do not point into or just past the end of an object violates Rule 5.20. While eBPF doesn't have access to standard C library functions, it still uses memory manipulation functions like `__builtin_memcpy` and BPF helpers that can form invalid pointers through incorrect size calculations.
 
-#### 5_20a_libptr: Buffer overflow with __builtin_memcpy oversized copy
+#### [5_20a_libptr]: Buffer overflow with __builtin_memcpy oversized copy
 
 **Implementation Details:**
 - Allocates a 16-byte buffer but attempts to copy 24 bytes using `__builtin_memcpy`
@@ -1250,7 +1290,7 @@ xdp_synproxy_kern.c:476:4: warning: 'memcpy' will always overflow; destination b
 
 **Exploitable:** **Potentially dangerous** - Buffer overflow of 8 bytes can corrupt stack variables adjacent to the buffer, potentially causing program crashes or memory corruption
 
-#### 5_20b_libptr: BPF helper with invalid size parameters (verifier rejected)
+#### [5_20b_libptr]: BPF helper with invalid size parameters (verifier rejected)
 
 **Implementation Details:**
 - Uses `bpf_probe_read_kernel` with size parameter (32 bytes) larger than destination buffer (12 bytes)
@@ -1265,7 +1305,7 @@ xdp_synproxy_kern.c:476:4: warning: 'memcpy' will always overflow; destination b
 
 **Exploitable:** **Not exploitable** - The verifier prevents this violation from executing, demonstrating better protection for BPF helpers compared to `__builtin_memcpy`
 
-#### 5_20c_libptr: Type confusion in size calculations causing buffer overflow
+#### [5_20c_libptr]: Type confusion in size calculations causing buffer overflow
 
 **Implementation Details:**
 - Performs size calculations using wrong data types (e.g., `sizeof(int) * 8 = 32` instead of `sizeof(char) * 8 = 8`)
@@ -1284,6 +1324,8 @@ xdp_synproxy_kern.c:476:33: warning: comparison of distinct pointer types ('char
 **Exploitable:** **Dangerous** - Type confusion causing 12-byte buffer overflow may corrupt adjacent stack memory, leading to program instability or information leakage
 
 *Signed-by: Giovanni Nicosia*
+
+---
 
 ### [5.39 taintnoproto]: Calling a function through a pointer without a prototype using tainted input
 
@@ -1310,6 +1352,8 @@ xdp_synproxy_kern.c:788:7: warning: passing arguments to a function without a pr
 No extra tests due to unknown other possible callings.
 
 *Signed-by: Giorgio Fardo*
+
+---
 
 ### [5.40 taintformatio]: Tainted format string usage in eBPF helpers
 
@@ -1338,10 +1382,12 @@ In this case we use the helper `bpf_snprintf`, on the other hand `bpf_trace_prin
 *Signed-by: Giorgio Fardo*
 
 
+---
+
 ### [5.45 invfmtstr]: Invalid format strings in formatted I/O functions
 
 Using format strings with conversion specifiers that don't match the provided arguments, invalid flag combinations, or incorrect argument counts leads to undefined behavior and potentially exploitable vulnerabilities.
-#### 5_45_invfmtstr: Invalid format strings with mismatched arguments
+#### [5_45_invfmtstr]: Invalid format strings with mismatched arguments
 
 **Implementation Details:**
 - **Type Mismatch (UB 160):** `bpf_printk("Parsing packet at offset %s\n", (long)data)` - %s expects string but receives integer, resulting in empty/garbage output.
@@ -1357,6 +1403,8 @@ Using format strings with conversion specifiers that don't match the provided ar
 **Exploitable:** **Limited** - Format string mismatches corrupt logging output and may leak memory addresses through malformed prints, but eBPF's restricted environment prevents escalation to arbitrary memory access.
 
 *Signed-by: Giovanni Nicosia*
+
+---
 
 ### [5.46 taintsink]: Tainted, potentially mutilated, or out-of-domain integer values are used in a restricted sink
 
