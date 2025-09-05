@@ -109,7 +109,7 @@ In eBPF programs, such violations may not always be caught by the verifier, sinc
 
 ---
 
-#### Example 1 (Patch 5.1a)
+#### [5_01a_ptrcomp]
 
 **Implementation Details:**
 - The Ethernet header (`hdr->eth`) is **reinterpreted as an IPv4 header**:
@@ -125,12 +125,12 @@ In eBPF programs, such violations may not always be caught by the verifier, sinc
 This is undefined behavior because the effective type of the object (`struct ethhdr`) is accessed through an incompatible type (`struct iphdr`).
 
 - **Verifier**: Passed.
-- **Compiler warnings**: None.
+- **Extra warnings**: None.
 - **Exploitable**: Not possible in eBPF due to verifier-enforced memory bounds (cannot go beyondhdr->eth bound), but semantically invalid under C aliasing rules.
 
 ---
 
-#### Example 2 (Patch 5.1b)
+#### [5_01b_ptrcomp]
 
 **Implementation Details:**
 - The Ethernet header is **reinterpreted as a TCP header**:
@@ -144,12 +144,12 @@ This is undefined behavior because the effective type of the object (`struct eth
   Since the memory layout of `struct ethhdr` and `struct tcphdr` are incompatible, accessing the Ethernet data as a TCP header violates the aliasing rule.
 
 - **Verifier**: Passed.
-- **Compiler warnings**: None.
+- **Extra warnings**: None.
 - **Exploitable**: Not possible in eBPF due to verifier-enforced memory bounds , but logically incorrect under the C standard.
 
 ---
 
-#### Example 3 (Patch 5.1c)
+#### [5_01c_ptrcomp]
 
 **Implementation Details:**
 - The Ethernet header is accessed as a raw `__u32` pointer:
@@ -163,7 +163,7 @@ This is undefined behavior because the effective type of the object (`struct eth
   The retrieved value is printed with `bpf_printk`.
 
 - **Verifier**: Passed.
-- **Compiler warnings**: None.
+- **Extra warnings**: None.
 - **Exploitable**: Not possible in eBPF due to verifier-enforced memory bounds, though accessing structured header fields as raw integers is UB in standard C.
 
 ---
@@ -357,7 +357,7 @@ If two instances of an identical-looking struct have their data fields set to th
 
 **Verifier:** Passed.
 
-**Warnings:** No extra.
+**Extra warnings**: None.
 
 **Exploitable**: The issue only affects stack padding bytes within the local `padded_config_data` struct. Even though memcmp may behave non-deterministically due to uninitialized padding, this does not expose arbitrary memory outside the eBPF program’s stack. The “exploitation” is limited to logic non-determinism inside the program (e.g., occasional XDP_DROP), not a security vulnerability.
 
@@ -426,7 +426,7 @@ In **eBPF**, the verifier enforces bounds and provenance checks but does not tra
 
 ---
 
-#### Example 1 (Patch 5.11a)
+#### [5_11a_alignconv]
 
 **Implementation Details:**
 - A local buffer is intentionally misaligned:
@@ -442,12 +442,12 @@ In **eBPF**, the verifier enforces bounds and provenance checks but does not tra
   Accessing `misaligned_iph->version` is UB due to stricter alignment requirements.
 
 - **Verifier**: Passed.
-- **Compiler warnings**: None.
+- **Extra warnings**: None.
 - **Exploitable**: Not memory exploitable in eBPF. The verifier still enforces bounds safety; the misalignment only causes logical misbehavior, not arbitrary memory access. But this could incorrectly satisfy or bypass control-flow conditions.
 
 ---
 
-#### Example 2 (Patch 5.11b)
+#### [5_11b_alignconv]
 
 **Implementation Details:**
 - The field `tcp_len` (declared as `__u16`) is accessed through a `__u8` pointer:
@@ -463,14 +463,14 @@ In **eBPF**, the verifier enforces bounds and provenance checks but does not tra
   Although logically meaningless, the code compiles and passes verifier checks.
 
 - **Verifier**: Passed.
-- **Compiler warnings**: None.
+- **Extra warnings**: None.
 - **Exploitable**: Not memory exploitable. However, this type of UB can be logically exploitable:
   - If program logic checks the full `__u16` but the UB cast inspects only the low byte, attackers can craft inputs where the LSBs match expected values (e.g., `0x0100 → 0x00` when truncated to `__u8`).
   - This could incorrectly satisfy or bypass control-flow conditions.
 
 ---
 
-#### Example 3 (Patch 5.11c)
+#### [5_11c_alignconv]
 
 **Implementation Details:**
 - The Ethernet header pointer (`hdr->eth`, aligned for `struct ethhdr`) is converted to a `__u64 *`:
@@ -483,7 +483,7 @@ In **eBPF**, the verifier enforces bounds and provenance checks but does not tra
   Since `__u64` may impose stricter alignment requirements than `struct ethhdr`, this conversion is undefined behavior if the pointer is not suitably aligned.
 
 - **Verifier**: Passed.
-- **Compiler warnings**: None.
+- **Extra warnings**: None.
 - **Exploitable**: Not memory exploitable. Same as above, potential for logical misinterpretation if the misaligned cast influences how header values are checked.
 
 ---
@@ -514,7 +514,7 @@ In **eBPF**, this UB manifests at **compile time**, because the compiler enforce
 
 ---
 
-#### Example 1 (Patch 5.13a)
+#### [5_13a_objdec]
 
 **Implementation Details:**
 - An object `fake_var` is declared with conflicting types:
@@ -526,12 +526,13 @@ In **eBPF**, this UB manifests at **compile time**, because the compiler enforce
   The compiler produces a type mismatch error (`-Wint-conversion` or similar).
 
 - **Compilation**: Fails.
+- **Extra warnings**: None.
 - **Verifier**: Not reached.
 - **Exploitable**: Not exploitable; code does not compile, so no runtime behavior occurs.
 
 ---
 
-#### Example 2 (Patch 5.13b)
+#### [5_13b_objdec]
 
 **Implementation Details:**
 - A function is declared with incompatible types:
@@ -543,6 +544,7 @@ In **eBPF**, this UB manifests at **compile time**, because the compiler enforce
   The compiler rejects this due to incompatible function types.
 
 - **Compilation**: Fails.
+- **Extra warnings**: None.
 - **Verifier**: Not reached.
 - **Exploitable**: Not exploitable; compilation prevents runtime execution.
 
@@ -569,7 +571,7 @@ Dereferencing pointers derived from potentially tainted input (e.g., packet head
 - The function attempts to `__builtin_memcpy` from `copy_from` into `input_string`.
 - If `hdr->ipv4` is `NULL`, this dereference results in an invalid memory access, highlighting the risk of dereferencing unvalidated or tainted pointers in packet parsing logic.
 
-**Warnings:** No extra.
+**Extra warnings**: None.
 
 **Verifier:** Passed (invalid dereference not detected by static analysis).
 
@@ -585,7 +587,7 @@ Dereferencing pointers derived from potentially tainted input (e.g., packet head
 - The function attempts to `__builtin_memcpy` from `copy_from` into `sink`.
 - If the packet being processed is IPv4, then `hdr->ipv6` is `NULL`, and the dereference of `hdr->ipv6->daddr` results in an invalid access.
 
-**Warnings:** No extra.
+**Extra warnings**: None.
 
 **Verifier:** Passed (no rejection by the BPF verifier). The verifier tracks packet parsing paths but does not detect that `hdr->ipv6` may be `NULL` here.
 
@@ -613,6 +615,8 @@ processed 122 insns (limit 1000000) max_states_per_insn 0 total_states 9 peak_st
 ```
 **Observed Behavior:** The verifier rejects this code due to potential null pointer dereference from map lookup.
 
+**Extra warnings**: None.
+
 **Exploitable:** Not exploitable. The eBPF verifier correctly detects and prevents this null pointer dereference at load time.
 
 *Signed-by: Giorgio Fardo*
@@ -632,7 +636,7 @@ Automatic (stack-allocated) variables exist only for the lifetime of the functio
 - A call to `bpf_printk("Res: %s", ptr)` prints garbage or nothing, as the pointer references invalid memory.
 - Demonstrates how escaping stack addresses can result in use-after-scope bugs and potential memory corruption.
 
-**Warnings:** No extra.
+**Extra warnings**: None.
 
 **Verifier:** Passed (stack lifetime violations are not detected).
 
@@ -650,7 +654,7 @@ Automatic (stack-allocated) variables exist only for the lifetime of the functio
 
 **Verifier:** Passed (stack lifetime violations are not detected).
 
-**Warnings:**
+**Extra Warnings:**
 ```
 xdp_synproxy_kern.c:761:9: warning: address of stack memory associated with local variable 'array' returned [-Wreturn-stack-address]
 761 | return array; // diagnostic required
@@ -673,7 +677,7 @@ xdp_synproxy_kern.c:761:9: warning: address of stack memory associated with loca
 
 **Verifier:** Passed (stack lifetime violations are not detected).
 
-**Warnings:** No extra.
+**Extra warnings**: None.
 
 **Exploitable:** Not really — as with the first case, although this creates a dangling pointer, in eBPF the stack frame is strictly managed and reset per packet. The pointer cannot persist across contexts, so attackers cannot exploit it beyond producing garbage or misleading logs.
 
@@ -742,6 +746,66 @@ xdp_synproxy_kern.c:509:10: warning: enumeration value 'FIREWALL_REDIRECT' not h
 
 ---
 
+### [5.20 libptr]: Forming invalid pointers by library function
+
+Invoking a function with arguments that cause it to form pointers that do not point into or just past the end of an object violates Rule 5.20. While eBPF doesn't have access to standard C library functions, it still uses memory manipulation functions like `__builtin_memcpy` and BPF helpers that can form invalid pointers through incorrect size calculations.
+
+#### [5_20a_libptr]: Buffer overflow with __builtin_memcpy oversized copy
+
+**Implementation Details:**
+- Allocates a 16-byte buffer but attempts to copy 24 bytes using `__builtin_memcpy`
+- The library function forms pointers beyond the allocated object bounds when performing the oversized copy
+- Includes TCP options extraction scenario where options can be up to 40 bytes but buffer is only 16 bytes
+- Shows how size calculation errors lead to buffer overruns that violate pointer validity rules
+- Demonstrates the security implications when fixed-size copy operations exceed buffer boundaries
+
+**Verifier:** **Passed** - The eBPF verifier does not detect this buffer overflow, allowing the violation to execute
+
+**Extra warnings:**
+```
+xdp_synproxy_kern.c:469:25: warning: comparison of distinct pointer types ('char *' and 'void *') [-Wcompare-distinct-pointer-types]
+xdp_synproxy_kern.c:476:4: warning: 'memcpy' will always overflow; destination buffer has size 16, but size argument is 24 [-Wfortify-source]
+```
+
+**Exploitable:** **Potentially dangerous** - Buffer overflow of 8 bytes can corrupt stack variables adjacent to the buffer, potentially causing program crashes or memory corruption
+
+#### [5_20b_libptr]: BPF helper with invalid size parameters (verifier rejected)
+
+**Implementation Details:**
+- Uses `bpf_probe_read_kernel` with size parameter (32 bytes) larger than destination buffer (12 bytes)
+- The BPF helper attempts to form invalid pointers when accessing beyond the actual buffer boundaries
+- Demonstrates how helper function parameter mismatches can lead to out-of-bounds memory access
+- Shows realistic scenarios where helper size parameters don't match buffer expectations
+- Based on Rule 5.20 subpoint 5.20.1: functions taking (pointer, size_bytes) parameters
+
+**Verifier:** **Rejected** - The eBPF verifier blocks this pattern, detecting the invalid buffer size parameter
+
+**Extra warnings:** None (only base warnings present - compiles successfully)
+
+**Exploitable:** **Not exploitable** - The verifier prevents this violation from executing, demonstrating better protection for BPF helpers compared to `__builtin_memcpy`
+
+#### [5_20c_libptr]: Type confusion in size calculations causing buffer overflow
+
+**Implementation Details:**
+- Performs size calculations using wrong data types (e.g., `sizeof(int) * 8 = 32` instead of `sizeof(char) * 8 = 8`)
+- Uses `__builtin_memcpy` with miscalculated sizes that exceed buffer boundaries (32 bytes into 20-byte buffer)
+- Shows how type assumption errors lead to incorrect size calculations in packet processing
+- Demonstrates pointer formation violations where type confusion causes out-of-bounds access
+- Based on Rule 5.20 Example 2: sizeof(int) vs sizeof(float) type confusion
+
+**Verifier:** **Passed** - The verifier does not detect type confusion in size calculations, allowing the buffer overflow
+
+**Extra warnings:**
+```
+xdp_synproxy_kern.c:476:33: warning: comparison of distinct pointer types ('char *' and 'void *') [-Wcompare-distinct-pointer-types]
+```
+
+**Exploitable:** **Dangerous** - Type confusion causing 12-byte buffer overflow may corrupt adjacent stack memory, leading to program instability or information leakage
+
+*Signed-by: Giovanni Nicosia*
+
+---
+
 ### [5.22 invptr]: Using out-of-bounds pointers or array subscripts
 
 Pointer arithmetic or array indexing that goes beyond the bounds of an object is **undefined behavior** in C (ISO/IEC 9899:2011 §6.5.6). This includes:
@@ -755,7 +819,7 @@ In eBPF, the verifier enforces **memory safety** (bounds checking) for packet an
 
 ---
 
-#### Example 1 (Patch 5.22a)
+#### [5_22a_invptr]
 
 **Implementation Details:**
 - Using a negative offset to access a map element:
@@ -768,12 +832,13 @@ In eBPF, the verifier enforces **memory safety** (bounds checking) for packet an
   This forms an out-of-bounds pointer relative to the map key space.
 
 - **Compilation**: Passed.
+- **Extra warnings**: None.
 - **Verifier**: Passed.
 - **Exploitable**: Not exploitable in eBPF due to map key checking; UB is logical.
 
 ---
 
-#### Example 2 (Patch 5.22b)
+#### [5_22b_invptr]
 
 **Implementation Details:**
 - Pointer arithmetic beyond a TCP header field:
@@ -786,12 +851,13 @@ In eBPF, the verifier enforces **memory safety** (bounds checking) for packet an
   This produces a pointer outside the allocated TCP structure.
 
 - **Compilation**: Passed.
+- **Extra warnings**: None.
 - **Verifier**: Passed.
 - **Exploitable**: Not exploitable for memory corruption; may produce misleading logical values if used in calculations.
 
 ---
 
-#### Example 3 (Patch 5.22c)
+#### [5_22c_invptr]
 
 **Implementation Details:**
 - Dereferencing an out-of-bounds pointer:
@@ -804,6 +870,7 @@ In eBPF, the verifier enforces **memory safety** (bounds checking) for packet an
   Access is UB because it points past the structure.
 
 - **Compilation**: Passed.
+- **Extra warnings**: None.
 - **Verifier**: Not passed.
 ```
 Invalid access to context parameter
@@ -813,7 +880,7 @@ Invalid access to context parameter
 
 ---
 
-#### Example 4 (Patch 5.22d)
+#### [5_22d_invptr]
 
 **Implementation Details:**
 - Out-of-bounds array indexing:
@@ -826,12 +893,13 @@ Invalid access to context parameter
   This patch does not compile, as the compiler detects the OOB array access.
 
 - **Compilation**: Fails.
+- **Extra warnings**: None.
 - **Verifier**: Not reached.
 - **Exploitable**: Not applicable.
 
 ---
 
-#### Example 5 (Patch 5.22e)
+#### [5_22e_invptr]
 
 **Implementation Details:**
 - Pointer just past the end of TCP header:
@@ -844,12 +912,13 @@ Invalid access to context parameter
   UB occurs when using `invalid_access`, pointing outside the object.
 
 - **Compilation**: Passed.
+- **Extra warnings**: None.
 - **Verifier**: Passed.
 - **Exploitable**: Not exploitable for memory corruption; could mislead logic if low-byte checks are used.
 
 ---
 
-#### Example 6 (Patch 5.22f)
+#### [5_22f_invptr]
 
 **Implementation Details:**
 - Flexible array member access with no elements:
@@ -865,6 +934,7 @@ Invalid access to context parameter
   Accessing a non-existent element is undefined.
 
 - **Compilation**: Passed.
+- **Extra warnings**: None.
 - **Verifier**: Passed.
 - **Exploitable**: Only logically exploitable; memory corruption prevented by verifier bounds.
 
@@ -898,7 +968,7 @@ In eBPF, the verifier ensures memory safety but does **not validate format strin
 
 ---
 
-#### Example 1 (Patch 5.24a)
+#### [5_24a_usrfmt]
 
 **Implementation Details:**
 - A format string is retrieved from a BPF map:
@@ -914,12 +984,13 @@ In eBPF, the verifier ensures memory safety but does **not validate format strin
 
 - **Compilation**: Fails.
   - **Reason**: `bpf_map_lookup_elem` returns `void *` in eBPF C, which cannot be implicitly converted to `char *` without a cast. Strict type rules in kernel BPF programs prevent direct compilation.
+- **Extra warnings**: None.
 - **Verifier**: Not reached due to compilation failure.
 - **Exploitable**: If compiled with proper casting, this could be logically exploitable, e.g., a `%n` specifier could allow writing to arbitrary memory locations in standard C. In eBPF, memory safety prevents actual memory corruption, but logic or information leakage could occur.
 
 ---
 
-#### Example 2 (Patch 5.24b)
+#### [5_24b_usrfmt]
 
 **Implementation Details:**
 - Tainted input derived from the TCP header is inserted into a format string:
@@ -933,6 +1004,7 @@ In eBPF, the verifier ensures memory safety but does **not validate format strin
   The input could be partially controlled by an attacker (e.g., through network packet data). Using it in a formatted string is UB.
 
 - **Compilation**: Passed.
+- **Extra warnings**: None.
 - **Verifier**: Not passed.
 ```
 Invalid access to context parameter
@@ -974,7 +1046,7 @@ Why this approach? If the verifier statically determines that a divisor *could* 
 
 **Verifier:** Passed (but not an issue at runtime).
 
-**Warnings:** No extra.
+**Extra warnings**: None.
 
 **Explotable:** Not possible.
 
@@ -996,7 +1068,7 @@ Standard C does not define the behavior for `INT_MIN / -1`. The result is theore
 
 **Verifier:** Passed.
 
-**Warnings:** No extra.
+**Extra warnings**: None.
 
 **Exploitable**: Not possible. The eBPF runtime returns 0 in practice, and the operation cannot be leveraged for arbitrary memory access.
 
@@ -1017,7 +1089,7 @@ In C, the modulo requires the result to fit within the signed integer range. For
 
 **Verifier:** Passed
 
-**Warnings:** No extra.
+**Extra warnings**: None.
 
 **Exploitabile**: Not possible. The eBPF runtime produces 0 as the result, so this cannot be used to read or write memory.
 
@@ -1035,7 +1107,7 @@ String literals in C are stored in read-only memory. Attempting to modify them r
 - This operation is undefined behavior: string literals must not be written to.
 - Despite the violation, the verifier allows the code to pass since it does not track mutability of string literal memory.
 
-**Warnings:** No extra.
+**Extra warnings**: None.
 
 **Verifier:** Passed (modification of string literals not checked).
 
@@ -1057,7 +1129,7 @@ Integer overflow of signed types is undefined behavior in C. While unsigned inte
 - The tainted value passed in is `bpf_htons(hdr->tcp->seq)`, which typically holds large values.
 - Overflows and underflows are managed with wrap so they are ignored by the verifier
 
-**Warnings:** No extra.
+**Extra warnings**: None.
 
 **Verifier:** Passed, wrap used.
 
@@ -1089,7 +1161,7 @@ If a character array passed to such a function is *not* null-terminated within i
 
 **Verifier**: Passed (Under controlled memory layout).
 
-**Warnings:** No extra.
+**Extra warnings**: None.
 
 **Exploitable**: Not really in practice. It depends on what type of information is disclosed in the controlled memory layout.
 
@@ -1103,7 +1175,7 @@ If a character array passed to such a function is *not* null-terminated within i
 
 **Verifier**: Passed.
 
-**Warnings:** No extra.
+**Extra warnings**: None.
 
 **Exploitable**: Not really in practice. At worst, you might accidentally log adjacent stack contents, which is a form of information disclosure but is limited to what the eBPF program itself already has access to.
 The Verifier prevents the program to read adjacent memory content as it always zero initialize each stack frame.
@@ -1137,7 +1209,7 @@ By targeting `hdr->tcp->seq`, a legitimate SYN packet, which should have led to 
 
 **Verifier**: Passed.
 
-**Warnings:** No extra.
+**Extra warnings**: None.
 
 **Exploitable**: Not in a security sense. Only causes **logic/data corruption** in local eBPF stack memory, since the memory is fully controlled by the program.
 
@@ -1160,7 +1232,7 @@ In the eBPF context only local stack memory is affected, so no arbitrary memory 
 
 **Verifier:** Passed.
 
-**Warnings:** No extra.
+**Extra warnings**: None.
 
 **Exploitable:** Not in a security sense. It only causes local stack data corruption.
 
@@ -1180,7 +1252,7 @@ Using uninitialized memory results in undefined behavior. It can expose garbage 
 - The copied content (`buf`) is printed byte-by-byte with `bpf_printk()`, demonstrating random or garbage values.
 - This shows how lack of initialization can lead to unpredictable outcomes and violate memory safety.
 
-**Warnings:** No extra.
+**Extra warnings**: None.
 
 **Verifier:** Passed.
 
@@ -1218,7 +1290,7 @@ xdp_synproxy_kern.c:760:19: note: initialize the variable 'uninit_int' to silenc
 - The function then iterates over this extended area, reading each byte and logging its content with `bpf_printk()`.
 - This simulates a scenario where uninitialized packet data could be observed, potentially leaking sensitive information or introducing nondeterministic behavior.
 
-**Warnings:** No extra.
+**Extra warnings**: None.
 
 **Verifier:** Failed with `"R1 invalid mem access 'scalar'"`.
 
@@ -1281,66 +1353,6 @@ Subtracting or relationally comparing pointers that don't refer to the same arra
 
 ---
 
-### [5.20 libptr]: Forming invalid pointers by library function
-
-Invoking a function with arguments that cause it to form pointers that do not point into or just past the end of an object violates Rule 5.20. While eBPF doesn't have access to standard C library functions, it still uses memory manipulation functions like `__builtin_memcpy` and BPF helpers that can form invalid pointers through incorrect size calculations.
-
-#### [5_20a_libptr]: Buffer overflow with __builtin_memcpy oversized copy
-
-**Implementation Details:**
-- Allocates a 16-byte buffer but attempts to copy 24 bytes using `__builtin_memcpy`
-- The library function forms pointers beyond the allocated object bounds when performing the oversized copy
-- Includes TCP options extraction scenario where options can be up to 40 bytes but buffer is only 16 bytes
-- Shows how size calculation errors lead to buffer overruns that violate pointer validity rules
-- Demonstrates the security implications when fixed-size copy operations exceed buffer boundaries
-
-**Verifier:** **Passed** - The eBPF verifier does not detect this buffer overflow, allowing the violation to execute
-
-**Extra warnings:**
-```
-xdp_synproxy_kern.c:469:25: warning: comparison of distinct pointer types ('char *' and 'void *') [-Wcompare-distinct-pointer-types]
-xdp_synproxy_kern.c:476:4: warning: 'memcpy' will always overflow; destination buffer has size 16, but size argument is 24 [-Wfortify-source]
-```
-
-**Exploitable:** **Potentially dangerous** - Buffer overflow of 8 bytes can corrupt stack variables adjacent to the buffer, potentially causing program crashes or memory corruption
-
-#### [5_20b_libptr]: BPF helper with invalid size parameters (verifier rejected)
-
-**Implementation Details:**
-- Uses `bpf_probe_read_kernel` with size parameter (32 bytes) larger than destination buffer (12 bytes)
-- The BPF helper attempts to form invalid pointers when accessing beyond the actual buffer boundaries
-- Demonstrates how helper function parameter mismatches can lead to out-of-bounds memory access
-- Shows realistic scenarios where helper size parameters don't match buffer expectations
-- Based on Rule 5.20 subpoint 5.20.1: functions taking (pointer, size_bytes) parameters
-
-**Verifier:** **Rejected** - The eBPF verifier blocks this pattern, detecting the invalid buffer size parameter
-
-**Extra warnings:** None (only base warnings present - compiles successfully)
-
-**Exploitable:** **Not exploitable** - The verifier prevents this violation from executing, demonstrating better protection for BPF helpers compared to `__builtin_memcpy`
-
-#### [5_20c_libptr]: Type confusion in size calculations causing buffer overflow
-
-**Implementation Details:**
-- Performs size calculations using wrong data types (e.g., `sizeof(int) * 8 = 32` instead of `sizeof(char) * 8 = 8`)
-- Uses `__builtin_memcpy` with miscalculated sizes that exceed buffer boundaries (32 bytes into 20-byte buffer)
-- Shows how type assumption errors lead to incorrect size calculations in packet processing
-- Demonstrates pointer formation violations where type confusion causes out-of-bounds access
-- Based on Rule 5.20 Example 2: sizeof(int) vs sizeof(float) type confusion
-
-**Verifier:** **Passed** - The verifier does not detect type confusion in size calculations, allowing the buffer overflow
-
-**Extra warnings:**
-```
-xdp_synproxy_kern.c:476:33: warning: comparison of distinct pointer types ('char *' and 'void *') [-Wcompare-distinct-pointer-types]
-```
-
-**Exploitable:** **Dangerous** - Type confusion causing 12-byte buffer overflow may corrupt adjacent stack memory, leading to program instability or information leakage
-
-*Signed-by: Giovanni Nicosia*
-
----
-
 ### [5.39 taintnoproto]: Calling a function through a pointer without a prototype using tainted input
 
 Calling a function through a pointer without a proper prototype leads to undefined behavior. If the function expects arguments and the caller provides incompatible or tainted input, the results are unpredictable.
@@ -1351,7 +1363,7 @@ Calling a function through a pointer without a proper prototype leads to undefin
 - The function is called with `(*pf)(tainted_val)`, where `tainted_val` is derived from `hdr->tcp->seq`, a value from the packet.
 - This violates UB 39 and UB 41 by combining a tainted input with a call to a function without a prototype.
 
-**Compiler warnings:** Deprecated passing argument to function without prototype :
+**Extra warnings:** Deprecated passing argument to function without prototype :
 ```
 xdp_synproxy_kern.c:788:7: warning: passing arguments to a function without a prototype is deprecated in all versions of C and is not supported in C23 [-Wdeprecated-non-prototype]
   788 |         (*pf)(bpf_htons(hdr->tcp->seq)/1000); //This is the tainted input into unproto function call
@@ -1387,7 +1399,7 @@ In this case we use the helper `bpf_snprintf`, on the other hand `bpf_trace_prin
 - The target buffer `buf[4]` is intentionally undersized, making the call unsafe if the verifier allowed it.
 - The verifier detects this as **invalid indirect access to stack** and rejects the program (`call bpf_snprintf#165 invalid indirect access to stack`).
 
-**Warnings:** None at compile time.
+**Extra warnings:** None at compile time.
 
 **Verifier:** **Rejected.** The verifier identifies an unbounded tainted access (`invalid indirect access to stack`).
 
@@ -1442,7 +1454,7 @@ In this particular case the eBPF verifier performs a correct memory validation. 
 math between fp pointer and register with unbounded min value is not allowed
 ```
 
-**Warnings:** No extra.
+**Extra warnings:** None.
 
 **Exploitable:** Not possible.
 
@@ -1461,7 +1473,7 @@ Under this specific condition, the verifier allows the eBPF program to load, eve
 
 **Verifier:** Passed.
 
-**Warnings:** No extra.
+**Extra warnings:** None.
 
 **Exploitable:**
 - Memory safety exploitation (kernel R/W): No, not possible.
@@ -1481,7 +1493,7 @@ Under this specific condition, the verifier allows the eBPF program to load, eve
 Address R11 is invalid (result of VLA attempt)
 ```
 
-**Warnings:** No extra.
+**Extra warnings:** None.
 
 **Exploitable:** Not possible.
 
