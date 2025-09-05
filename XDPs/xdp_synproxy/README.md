@@ -14,6 +14,12 @@ Each vulnerability rule is implemented as a Git commit patch that modifies the b
 
 The patches are designed to demonstrate specific ISO-IEC TS 17961-2013 rule violations while maintaining the core SYN proxy functionality.
 
+#### Legend
+
+- **No** : Blocked by verifier
+- **Limited** : Passed by verifier but limited explotability, not really an exploit
+- **Yes** : Passed by verifer and can lead to further exploitability
+
 ## Rules Not Applicable to XDP/eBPF
 
 The following ISO-IEC TS 17961-2013 rules are **not applicable** to XDP/eBPF environments due to fundamental limitations and architectural differences:
