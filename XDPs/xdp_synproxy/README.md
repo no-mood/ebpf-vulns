@@ -61,7 +61,7 @@ While 5.38 rule is useful for preventing functional bugs in standard C code, it 
 
 (Signed-by: Giorgio Fardo, Francesco Rollo)
 
-**Rule 5.44** 
+**Rule 5.44**
 Rule 5.44 is about avoiding the use of reserved identifiers (like errno, or identifiers starting with _ followed by uppercase) to ensure portability and prevent undefined behavior in standard C environments.
 In the context of XDP/eBPF, this rule has little relevance for security testing because eBPF programs operate in a restricted environment without the C standard library, and reserved identifier clashes cannot lead to security vulnerabilities. At worst, such violations cause compilation issues, not exploitable conditions.
 
@@ -263,7 +263,7 @@ Calling functions with incorrect arguments, incompatible types, or mismatched pr
 xdp_synproxy_kern.c:449:35: warning: passing arguments to a function without a prototype is deprecated in all versions of C and is not supported in C23 [-Wdeprecated-non-prototype]
 ```
 
-**Exploitable:** **Potentially dangerous** - Function pointer type incompatibility disrupts the calling convention, potentially corrupting registers or stack data when arguments are passed incorrectly. This can lead to unpredictable program behavior or memory corruption.
+**Exploitable:** **Yes**, potentially dangerous - Function pointer type incompatibility disrupts the calling convention, potentially corrupting registers or stack data when arguments are passed incorrectly. This can lead to unpredictable program behavior or memory corruption.
 
 #### [5_06b_argcomp]: Wrong number of arguments
 
@@ -282,7 +282,7 @@ xdp_synproxy_kern.c:444:21: warning: passing arguments to 'network_copy_helper' 
 xdp_synproxy_kern.c:374:6: warning: a function declaration without a prototype is deprecated in all versions of C and is treated as a zero-parameter prototype in C23, conflicting with a subsequent definition [-Wdeprecated-non-prototype]
 ```
 
-**Exploitable:** **Potentially dangerous** - Passing extra arguments can overwrite adjacent stack memory since the function only expects two parameters. The third argument gets pushed onto the stack but has no designated storage, potentially corrupting nearby data structures.
+**Exploitable:** **Yes**, potentially dangerous - Passing extra arguments can overwrite adjacent stack memory since the function only expects two parameters. The third argument gets pushed onto the stack but has no designated storage, potentially corrupting nearby data structures.
 
 #### [5_06c_argcomp]: Variadic function without prototype
 
@@ -302,7 +302,7 @@ xdp_synproxy_kern.c:374:6: warning: a function declaration without a prototype i
 xdp_synproxy_kern.c:453:6: error: conflicting types for 'debug_print_helper'
 ```
 
-**Exploitable:** **Not exploitable** - Compilation fails due to conflicting function declarations, preventing the code from running. No runtime security risk exists since the program cannot be built.
+**Exploitable:** **No** - Compilation fails due to conflicting function declarations, preventing the code from running. No runtime security risk exists since the program cannot be built.
 
 #### [5_06d_argcomp]: Wrong argument types
 
@@ -336,7 +336,7 @@ xdp_synproxy_kern.c:374:6: warning: a function declaration without a prototype i
 
 **Extra warnings:** None (only base warnings present - compiles successfully)
 
-**Exploitable:** **Not exploitable** - The eBPF verifier detects the invalid map pointer and rejects the program entirely. While this would be extremely dangerous in kernel space, the verification prevents execution.
+**Exploitable:** **No** - The eBPF verifier detects the invalid map pointer and rejects the program entirely. While this would be extremely dangerous in kernel space, the verification prevents execution.
 
 *Signed-by: Giovanni Nicosia*
 
@@ -383,7 +383,7 @@ Converting pointers to integers and back can lead to undefined behavior if the r
 
 **Extra warnings:** None (only base warnings present - compiles successfully)
 
-**Exploitable:** **Not exploitable** - The verifier recognizes and blocks the pointer arithmetic pattern before program execution. This demonstrates that the security mechanisms effectively prevent this class of attack.
+**Exploitable:** **No** - The verifier recognizes and blocks the pointer arithmetic pattern before program execution. This demonstrates that the security mechanisms effectively prevent this class of attack.
 
 #### [5_10a_exploit_intptrconv]: Information disclosure via advanced pointer truncation bypass
 
@@ -398,7 +398,7 @@ Converting pointers to integers and back can lead to undefined behavior if the r
 
 **Extra warnings:** None (only base warnings present)
 
-**Exploitable:** Yes, critical information disclosure vulnerability that bypasses verifier protections and can leak kernel memory contents.
+**Exploitable:** **Yes** - Critical information disclosure vulnerability that bypasses verifier protections and can leak kernel memory contents.
 
 #### [5_10b_intptrconv]: Hardcoded integer to pointer conversion
 
@@ -412,7 +412,7 @@ Converting pointers to integers and back can lead to undefined behavior if the r
 
 **Extra warnings:** None (only base warnings present - compiles successfully)
 
-**Exploitable:** **Not exploitable** - Converting hardcoded integers to pointers would allow arbitrary memory access in normal programs, but the eBPF verifier catches this pattern and blocks execution entirely.
+**Exploitable:** **No** - Converting hardcoded integers to pointers would allow arbitrary memory access in normal programs, but the eBPF verifier catches this pattern and blocks execution entirely.
 
 *Signed-by: Giovanni Nicosia*
 
@@ -701,7 +701,7 @@ When `char` is signed (implementation-defined), converting directly to `int` wit
 
 **Extra warnings:** None (only base warnings present - compiles successfully)
 
-**Exploitable:** **Not exploitable** - While the signed conversion vulnerability is conceptually valid, the verifier prevents unsafe access to TCP payload data, blocking the attack vector before it can cause memory corruption.
+**Exploitable:** **No** - While the signed conversion vulnerability is conceptually valid, the verifier prevents unsafe access to TCP payload data, blocking the attack vector before it can cause memory corruption.
 
 #### [5_16b_signconv]: Controlled demonstration of signed char conversion vulnerability
 
@@ -740,7 +740,7 @@ A switch statement with an enumerated controlling expression that lacks a defaul
 xdp_synproxy_kern.c:509:10: warning: enumeration value 'FIREWALL_REDIRECT' not handled in switch [-Wswitch]
 ```
 
-**Exploitable:** **Potentially dangerous** - The missing FIREWALL_REDIRECT case creates undefined behavior when packets trigger that action. This can result in arbitrary return values, potentially causing legitimate traffic to be dropped or malicious traffic to pass through.
+**Exploitable:** **Yes**, potentially dangerous - The missing FIREWALL_REDIRECT case creates undefined behavior when packets trigger that action. This can result in arbitrary return values, potentially causing legitimate traffic to be dropped or malicious traffic to pass through.
 
 *Signed-by: Giovanni Nicosia*
 
@@ -767,7 +767,7 @@ xdp_synproxy_kern.c:469:25: warning: comparison of distinct pointer types ('char
 xdp_synproxy_kern.c:476:4: warning: 'memcpy' will always overflow; destination buffer has size 16, but size argument is 24 [-Wfortify-source]
 ```
 
-**Exploitable:** **Potentially dangerous** - Buffer overflow of 8 bytes can corrupt stack variables adjacent to the buffer, potentially causing program crashes or memory corruption
+**Exploitable:** **Yes**, potentially dangerous - Buffer overflow of 8 bytes can corrupt stack variables adjacent to the buffer, potentially causing program crashes or memory corruption
 
 #### [5_20b_libptr]: BPF helper with invalid size parameters (verifier rejected)
 
@@ -782,7 +782,7 @@ xdp_synproxy_kern.c:476:4: warning: 'memcpy' will always overflow; destination b
 
 **Extra warnings:** None (only base warnings present - compiles successfully)
 
-**Exploitable:** **Not exploitable** - The verifier prevents this violation from executing, demonstrating better protection for BPF helpers compared to `__builtin_memcpy`
+**Exploitable:** **No** - The verifier prevents this violation from executing, demonstrating better protection for BPF helpers compared to `__builtin_memcpy`
 
 #### [5_20c_libptr]: Type confusion in size calculations causing buffer overflow
 
@@ -800,7 +800,7 @@ xdp_synproxy_kern.c:476:4: warning: 'memcpy' will always overflow; destination b
 xdp_synproxy_kern.c:476:33: warning: comparison of distinct pointer types ('char *' and 'void *') [-Wcompare-distinct-pointer-types]
 ```
 
-**Exploitable:** **Dangerous** - Type confusion causing 12-byte buffer overflow may corrupt adjacent stack memory, leading to program instability or information leakage
+**Exploitable:** **Yes**, potentially dangerous - Type confusion causing 12-byte buffer overflow may corrupt adjacent stack memory, leading to program instability or information leakage
 
 *Signed-by: Giovanni Nicosia*
 
@@ -1449,7 +1449,7 @@ This scenario is illustrated by two examples, each demonstrating different behav
 
 In this particular case the eBPF verifier performs a correct memory validation. Since `tainted_dest_port` can clearly exceed the array's bounds, and there is no bounds checking, the verifier will detect a potential out-of-bounds memory read. As a result, the verifier will reject the eBPF program load.
 
-**Verifier:** Not passed: 
+**Verifier:** Not passed:
 ```
 math between fp pointer and register with unbounded min value is not allowed
 ```
