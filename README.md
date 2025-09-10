@@ -23,7 +23,7 @@ ebpf-tests-3-1/
 │       └── patches/        # ISO-IEC TS 17961-2013 vulnerability patches
 ├── xvtlas/                 # XDP Verifier Launch Automation Suite
 ├── pretty-verifier/        # Python verifier output formatter
-└── docs/                   # Documentation and references
+└── docs/                   # Documentation and references (removed for copyright reasons)
 ```
 
 ## Quick Start
@@ -267,7 +267,7 @@ When adding new vulnerability patches:
 
 ## License
 
-TODO add license
+This project is licensed under the GNU GPL v3. See the LICENSE file for details.
 
 ## Authors
 
@@ -277,5 +277,7 @@ TODO add license
 - Giovanni Nicosia
 
 Developed for security research and educational purposes in the context of eBPF/XDP vulnerability analysis.
+
+We acknowledge Professor Riccardo Sisto and doctoral researcher Rosario Rizza from Politecnico di Torino for delegating the development of this work within the context of the Security Verification and Testing course, academic year 2024–2025.
 
 ---
